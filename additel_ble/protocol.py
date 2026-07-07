@@ -23,7 +23,13 @@ DOC_WRITE_UUID = "1B6B9415-FF0D-47C2-9444-A5032F727B2D"
 DEFAULT_TERMINATOR = "\r\n"
 
 #: Readiness token the device emits once, right after notifications start.
+#: Per Additel's BLE protocol (ADT685 family — same UUIDs as the 226/227), the
+#: gauge sends "CODE?" and the client must reply with the handshake token below
+#: within 5 seconds, otherwise the device disconnects and ignores all commands.
 READY_TOKEN = "CODE"
+
+#: Handshake reply the client must send after receiving "CODE?".
+HANDSHAKE_TOKEN = "@"
 
 #: GATT characteristic properties used to auto-discover the I/O characteristics.
 NOTIFY_PROPS = ("notify", "indicate")

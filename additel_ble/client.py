@@ -37,7 +37,8 @@ class AdditelBLE:
         address: Connect directly to this BLE address/UUID (skips scanning).
         notify_uuid: Force the notification characteristic UUID.
         write_uuid: Force the write characteristic UUID.
-        at_prefix: Prefix every command with ``@`` (some firmware expects this).
+        handshake: Reply sent after the device's ``CODE?`` prompt to unlock
+            communication (defaults to ``"@"``; pass ``None`` to disable).
         terminator: Command terminator (defaults to ``\\r\\n``).
         scan_timeout: Scan duration when discovering by name (seconds).
         command_timeout: Default per-command reply timeout (seconds).
@@ -57,7 +58,7 @@ class AdditelBLE:
         *,
         notify_uuid: Optional[str] = None,
         write_uuid: Optional[str] = None,
-        at_prefix: bool = False,
+        handshake: Optional[str] = protocol.HANDSHAKE_TOKEN,
         terminator: str = protocol.DEFAULT_TERMINATOR,
         scan_timeout: float = 10.0,
         command_timeout: float = 3.0,
@@ -67,7 +68,8 @@ class AdditelBLE:
         self.address = address
         self.override_notify = notify_uuid
         self.override_write = write_uuid
-        self.prefix = "@" if at_prefix else ""
+        # Handshake reply sent after the device's "CODE?" prompt (None to disable).
+        self.handshake = handshake
         self.terminator = terminator
         self.scan_timeout = scan_timeout
         self.command_timeout = command_timeout
@@ -126,6 +128,10 @@ class AdditelBLE:
         self._resolve_characteristics()
         await client.start_notify(self._notify_char, self._on_notify)
         self._ready = await self._wait_ready()
+        # The device unlocks command processing only after we answer its CODE?
+        # prompt with the handshake token (within ~5s), so send it immediately.
+        if self.handshake is not None:
+            await self._send_handshake()
         return self
 
     async def disconnect(self) -> None:
@@ -279,10 +285,30 @@ class AdditelBLE:
         if self._client is None:
             raise AdditelError("Not connected. Call connect() first.")
 
+    async def _send_handshake(self) -> None:
+        """Answer the device's ``CODE?`` prompt to unlock command processing.
+
+        Per Additel's BLE protocol (ADT685 family — same UUIDs as the 226/227),
+        after the gauge sends ``CODE?`` the client must send ``@\\r\\n`` within
+        ~5 seconds, otherwise the device disconnects and never answers commands.
+        """
+        payload = protocol.build_command(self.handshake, terminator=self.terminator)
+        log.debug("handshake TX: %r", payload)
+        try:
+            await self._client.write_gatt_char(
+                self._write_char, payload, response=self._write_response
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("handshake write failed: %s", exc)
+        # Discard any handshake acknowledgement so it isn't taken as a reply.
+        if self._lines is not None:
+            while not self._lines.empty():
+                self._lines.get_nowait()
+
     async def write(self, command: str) -> None:
         """Send a command without waiting for a reply."""
         self._require_client()
-        payload = protocol.build_command(command, prefix=self.prefix, terminator=self.terminator)
+        payload = protocol.build_command(command, terminator=self.terminator)
         log.debug("TX: %r", payload)
         await self._client.write_gatt_char(
             self._write_char, payload, response=self._write_response

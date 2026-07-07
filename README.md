@@ -140,7 +140,7 @@ Esempi completi in [`examples/`](examples/).
 
 ## API reference
 
-### `AdditelBLE(name="ADT226", address=None, *, notify_uuid=None, write_uuid=None, at_prefix=False, terminator="\r\n", scan_timeout=10.0, command_timeout=3.0, ready_timeout=5.0)`
+### `AdditelBLE(name="ADT226", address=None, *, notify_uuid=None, write_uuid=None, handshake="@", terminator="\r\n", scan_timeout=10.0, command_timeout=3.0, ready_timeout=5.0)`
 
 Client BLE asincrono.
 
@@ -185,7 +185,7 @@ adt-ble send --name ADT227 "*IDN?"     #    connetti per NOME
 adt-ble send --uuid <ADDRESS> "*IDN?"  #    oppure per INDIRIZZO/UUID
 adt-ble send "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"   # più comandi in sequenza
 adt-ble send -v "*IDN?"                #    -v mostra anche la tabella GATT (UUID)
-adt-ble send --at-prefix "*IDN?"       #    alcuni firmware vogliono il prefisso '@'
+adt-ble send --handshake "" "*IDN?"    #    disabilita l'handshake @ (di default è automatico)
 ```
 
 `adt-ble send` senza comando invia `*IDN?`. In alternativa: `python -m additel_ble.cli ...`.
@@ -233,7 +233,7 @@ async with AdditelBLE(name="ADT226") as dev:
 ## Come funziona
 
 - **Trasporto UART-over-GATT**: si scrive su una *write characteristic*, le risposte arrivano via **notifiche**.
-- Dopo l'iscrizione il device invia una volta **`CODE?`** = pronto (non serve rispondere).
+- **Handshake**: dopo l'iscrizione il device invia **`CODE?`**; il client **deve rispondere `@\r\n` entro ~5s**, altrimenti il device chiude e ignora i comandi. La libreria lo fa in automatico (`handshake="@"`).
 - Comandi = stringhe **SCPI** terminate da `\r\n`; risposte spesso **frammentate** → bufferizzate fino al terminatore.
 - Risoluzione characteristic: **override → UUID documentati → auto-discovery** dalle proprietà.
 

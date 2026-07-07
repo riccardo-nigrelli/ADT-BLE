@@ -19,11 +19,17 @@ libreria **cross-platform**: macOS / Windows / Linux):
 3. **Connessione** con `BleakClient`.
 4. **Subscribe** alla *notification characteristic* per ricevere le risposte
    (arrivano come `bytearray`).
-5. Il dispositivo invia spontaneamente **`CODE?`** come primo messaggio: è il
-   segnale che è **pronto** a ricevere comandi. L'esempio ufficiale non
-   risponde a `CODE?`, si limita ad attenderlo/ignorarlo.
+5. **Handshake**: il dispositivo invia spontaneamente **`CODE?`**; il client
+   **deve rispondere `@\r\n` entro ~5 secondi**, altrimenti il device chiude la
+   connessione e **ignora tutti i comandi**. Solo dopo l'handshake risponde.
+   (Documentato nel *Bluetooth Protocol for the ADT685*, che usa gli stessi
+   UUID del 226/227.)
 6. **Scrittura** del comando sulla *write characteristic*, come `bytes` UTF-8.
 7. Le risposte arrivano nella callback delle notifiche.
+
+> ⚠️ La guida BLE generica del 226 diceva che dopo `CODE?` "si può iniziare a
+> inviare comandi" **senza rispondere** — è **errato/incompleto**: senza
+> l'handshake `@` il device 226 non risponde e si disconnette dopo ~5s.
 
 ## UUID
 
@@ -52,10 +58,9 @@ completa e le alternative (nRF Connect, `bluetoothctl`, ecc.).
 - **Terminatore**: uno tra `\r\n`, `\r`, `\n`, `\0`. Lo script usa `\r\n`.
 - Struttura: *mnemonico* + spazio + *parametro* (es. `MEASure:CH? PV`).
 - Le parti in `[]` del mnemonico sono opzionali.
-- Prefisso `@`: la documentazione ufficiale è **incoerente** — il file
-  `additel_official_bluetooth_example.py` usa `*idn?`, mentre un blocco della
-  guida `.md` mostra `@*idn?`. Lo script di default **non** usa `@`; si può
-  abilitare con `--at-prefix`.
+- Il `@` **non** è un prefisso da anteporre a ogni comando: è il **token di
+  handshake** una tantum in risposta a `CODE?` (vedi punto 5). La libreria lo
+  invia in automatico (`AdditelBLE(handshake="@")`, default).
 - Le risposte BLE possono arrivare **frammentate** su più notifiche: vanno
   bufferizzate fino al terminatore (lo script lo fa).
 

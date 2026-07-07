@@ -171,7 +171,10 @@ def send(
         None, "--address", "--uuid", "-a",
         help="Connect straight to this address/UUID (skips the name scan).",
     ),
-    at_prefix: bool = typer.Option(False, "--at-prefix", help="Prefix commands with '@'."),
+    handshake: str = typer.Option(
+        "@", "--handshake",
+        help="Handshake reply to the device's CODE? prompt ('' to disable).",
+    ),
     timeout: float = typer.Option(3.0, "--timeout", "-t", help="Per-command reply timeout (s)."),
     scan_timeout: float = typer.Option(10.0, "--scan-timeout", help="Scan duration (s)."),
     verbose: bool = typer.Option(
@@ -185,7 +188,7 @@ def send(
     async def _impl():
         async with AdditelBLE(
             name=name, address=address, scan_timeout=scan_timeout,
-            command_timeout=timeout, at_prefix=at_prefix,
+            command_timeout=timeout, handshake=handshake or None,
         ) as dev:
             console.print(
                 f"[green]Connected[/green] to [bold]{dev.address}[/bold]  "
