@@ -6,69 +6,75 @@
 </p>
 
 <p align="center">
-  <b>Toolkit da riga di comando per comunicare via Bluetooth Low Energy con i calibratori Additel</b><br>
-  <sub>Target primario: <b>ADT226</b> — compatibile con ADT227 e varianti <code>…Ex</code></sub>
+  <b>Libreria Python integrabile per la comunicazione Bluetooth Low Energy con i calibratori Additel</b><br>
+  <sub>+ una CLI di test separata &nbsp;·&nbsp; target primario <b>ADT226</b> (compatibile ADT227 e varianti <code>…Ex</code>)</sub>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.8%2B-3776AB?logo=python&logoColor=white" alt="Python 3.8+">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-64748b" alt="Platforms">
   <img src="https://img.shields.io/badge/BLE-Bleak-4f46e5?logo=bluetooth&logoColor=white" alt="Bleak">
+  <img src="https://img.shields.io/badge/CLI-Typer-009485" alt="Typer">
   <img src="https://img.shields.io/badge/license-MIT-16a34a" alt="MIT">
 </p>
 
 ---
 
-**ADT BLE** scansiona, si connette e dialoga via BLE con un calibratore
-Additel: trova il device → si connette → si iscrive alle notifiche → attende il
-segnale di pronto `CODE?` → invia comandi **SCPI** (es. `*IDN?`, lettura misura)
-→ stampa le risposte → si disconnette.
+**ADT-BLE** è composto da due parti:
 
-È basato sull'esempio ufficiale Additel (Python + libreria
-[Bleak](https://bleak.readthedocs.io)), con in più: **auto-discovery degli
-UUID**, buffering delle risposte frammentate, attesa esplicita di ogni
-risposta (niente `sleep` fissi), override degli UUID e gestione degli errori.
+1. **`additel_ble`** — una **libreria** pulita e integrabile in altri programmi, con dipendenza core solo su [`bleak`](https://bleak.readthedocs.io). Offre un'API **async** (`AdditelBLE`) e una **sincrona** (`AdditelBLESync`) per l'uso anche in programmi non-async.
+2. **`adt-ble`** — una **CLI di test** separata (basata su [Typer](https://typer.tiangolo.com) + [Rich](https://rich.readthedocs.io)), installabile come extra opzionale.
 
-> ⚙️ **Cross-platform**: gira su **macOS, Windows e Linux** senza modifiche —
-> Bleak usa CoreBluetooth / WinRT / BlueZ a seconda del sistema.
+La libreria gestisce: scan/connessione, risoluzione delle characteristic GATT (**override → UUID documentati → auto-discovery**), handshake `CODE?`, buffering delle risposte BLE frammentate e un'API comandi `query`/`write` con gestione degli errori tipizzata.
+
+> ⚙️ **Cross-platform**: macOS, Windows e Linux senza modifiche (Bleak usa CoreBluetooth / WinRT / BlueZ).
 
 ## Indice
 
 - [Funzionalità](#funzionalità)
-- [Requisiti](#requisiti)
 - [Installazione](#installazione)
-- [Uso](#uso)
+- [Uso come libreria](#uso-come-libreria)
+- [API reference](#api-reference)
+- [CLI di test (`adt-ble`)](#cli-di-test-adt-ble)
 - [Come ottenere/recuperare gli UUID](#come-ottenerrecuperare-gli-uuid) 🔑
 - [Come funziona](#come-funziona)
-- [Note per piattaforma & permessi](#note-per-piattaforma--permessi)
-- [Troubleshooting](#troubleshooting)
+- [Note per piattaforma](#note-per-piattaforma)
 - [Struttura del progetto](#struttura-del-progetto)
+- [Sviluppo & test](#sviluppo--test)
 - [Riferimenti](#riferimenti)
 - [Licenza](#licenza)
 
 ## Funzionalità
 
-- 🔍 **Scan & match** del device per nome advertised (o connessione diretta per indirizzo).
-- 🔗 **Connessione BLE** e risoluzione automatica delle characteristic di I/O.
-- 🧩 **Auto-discovery degli UUID** (con possibilità di override manuale).
-- 📥 **Buffering** delle risposte BLE frammentate fino al terminatore.
-- ⏱️ **Attesa per-comando** con timeout (nessun `sleep` a caso).
-- 🖥️ **Cross-platform** e **zero dipendenze** oltre a `bleak`.
-
-## Requisiti
-
-- **Python 3.8+**
-- **Bluetooth** attivo sul computer (adattatore BLE)
-- Il **calibratore Additel** acceso, con Bluetooth abilitato, nel raggio d'azione (fino a ~20 m in campo libero)
+- 📦 **Libreria integrabile** — dipendenza core solo `bleak`, tipizzata (`py.typed`).
+- 🔀 **API async e sync** — usala con `async/await` o come API bloccante.
+- 🧩 **Auto-discovery degli UUID** (con override manuale).
+- 📥 **Buffering** delle risposte BLE frammentate + handshake `CODE?`.
+- 🧱 **Errori tipizzati** (`AdditelError` e sottoclassi).
+- 🖥️ **CLI di test** con Typer/Rich (scan, gatt, test, query).
+- ✅ **Testata** (pytest) e **cross-platform**.
 
 ## Installazione
 
+**Come libreria** (integrazione in un altro programma):
+
 ```bash
-git clone git@github.com:riccardo-nigrelli/ADT-BLE.git
-cd ADT-BLE
+# da sorgente locale
+pip install .
+
+# oppure direttamente da GitHub
+pip install "git+https://github.com/riccardo-nigrelli/ADT-BLE.git"
 ```
 
-Crea un ambiente virtuale e installa le dipendenze:
+**Con la CLI di test** (extra `cli`):
+
+```bash
+pip install ".[cli]"
+# o da GitHub:
+pip install "additel-ble[cli] @ git+https://github.com/riccardo-nigrelli/ADT-BLE.git"
+```
+
+**Ambiente di sviluppo** (editable + CLI + test):
 
 <details open>
 <summary><b>macOS / Linux</b></summary>
@@ -76,7 +82,7 @@ Crea un ambiente virtuale e installa le dipendenze:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt   # -e .[cli,dev]
 ```
 </details>
 
@@ -90,190 +96,185 @@ python -m pip install -r requirements.txt
 ```
 </details>
 
-## Uso
+## Uso come libreria
+
+### Async (consigliato)
+
+```python
+import asyncio
+from additel_ble import AdditelBLE
+
+async def main():
+    async with AdditelBLE(name="ADT226") as dev:      # connette + handshake
+        print("IDN:", await dev.identify())            # *IDN?
+        print("Val:", await dev.measure())             # CALibrator:MEASure:VALUE?
+        print("Unit:", await dev.query("CALibrator:MEASure:PRESsure:UNIT?"))
+
+asyncio.run(main())
+```
+
+### Sincrono (programmi non-async)
+
+```python
+from additel_ble import AdditelBLESync
+
+with AdditelBLESync(name="ADT226") as dev:
+    print("IDN:", dev.identify())
+    print("Val:", dev.query("CALibrator:MEASure:VALUE?"))
+```
+
+### Gestione errori
+
+```python
+from additel_ble import AdditelBLE, DeviceNotFoundError, CommandTimeoutError, AdditelError
+
+async with AdditelBLE(name="ADT226", scan_timeout=15) as dev:
+    try:
+        print(await dev.query("*IDN?", timeout=2))
+    except CommandTimeoutError:
+        print("nessuna risposta")
+# tutte le eccezioni della libreria derivano da AdditelError
+```
+
+Esempi completi in [`examples/`](examples/).
+
+## API reference
+
+### `AdditelBLE(name="ADT226", address=None, *, notify_uuid=None, write_uuid=None, at_prefix=False, terminator="\r\n", scan_timeout=10.0, command_timeout=3.0, ready_timeout=5.0)`
+
+Client BLE asincrono.
+
+| Metodo / proprietà | Descrizione |
+|---|---|
+| `await connect()` → self | Scan (se serve), connessione, risoluzione characteristic, handshake. |
+| `await disconnect()` | Chiude notifiche e connessione (idempotente). |
+| `async with ...` | `connect()`/`disconnect()` automatici. |
+| `await query(cmd, *, timeout=None)` → `str` | Invia un comando e ritorna la risposta (solleva `CommandTimeoutError`). |
+| `await write(cmd)` | Invia senza attendere risposta. |
+| `await identify()` → `str` | Scorciatoia per `*IDN?`. |
+| `await measure()` → `str` | Scorciatoia per `CALibrator:MEASure:VALUE?`. |
+| `gatt_table()` → `list[(service, char, props)]` | Tabella GATT (per scoprire gli UUID). |
+| `is_connected`, `ready`, `address`, `notify_uuid`, `write_uuid` | Proprietà di stato. |
+
+### `AdditelBLESync(...)`
+Stessa firma e stessi metodi, ma **bloccanti** (usa un event loop in un thread dedicato). Supporta `with`.
+
+### Funzioni & eccezioni
+- `await scan(timeout=10.0)` / `scan_sync(timeout=10.0)` — elenco device BLE.
+- `await find_device(name, *, timeout=10.0)` — primo device che matcha (solleva `DeviceNotFoundError`).
+- `ResponseBuffer`, `build_command(...)` — primitive di protocollo riusabili.
+- Eccezioni: `AdditelError` (base), `DeviceNotFoundError`, `ConnectionFailedError`, `CharacteristicNotFoundError`, `CommandTimeoutError`.
+
+## CLI di test (`adt-ble`)
 
 ```bash
-# Scan del device "ADT226" e verifica comunicazione (default)
-python adt_ble.py
-
-# Elenca solo i dispositivi BLE vicini (utile per trovare nome/indirizzo)
-python adt_ble.py --scan-only
-
-# Modalità verbosa: stampa tutti i device + la tabella GATT (UUID) + RX/TX grezzi
-python adt_ble.py -v
-
-# Nome diverso (es. ADT227) o match parziale
-python adt_ble.py --name ADT227
-
-# Connessione diretta a un indirizzo (MAC su Windows/Linux, UUID su macOS)
-python adt_ble.py --address AA:BB:CC:DD:EE:FF
-
-# Comandi SCPI personalizzati
-python adt_ble.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
-
-# UUID espliciti (vedi la sezione dedicata più sotto)
-python adt_ble.py --notify-uuid <UUID> --write-uuid <UUID>
-
-# Alcuni firmware richiedono il prefisso '@' sui comandi
-python adt_ble.py --at-prefix
+adt-ble --help
+adt-ble scan                       # elenca i device BLE vicini
+adt-ble scan --name ADT --timeout 5
+adt-ble gatt                       # connette e stampa la tabella GATT (UUID)
+adt-ble test                       # *IDN? + lettura misura
+adt-ble test --name ADT227 -v
+adt-ble query "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+adt-ble query "*IDN?" --at-prefix  # alcuni firmware vogliono il prefisso '@'
 ```
 
-### Output atteso (esempio)
-
-```
-10:12:01 INFO    Scanning for BLE devices for 10s...
-10:12:11 INFO    Found device: ADT226 (AA:BB:CC:DD:EE:FF)
-10:12:11 INFO    Connecting...
-10:12:12 INFO    Connected.
-10:12:12 INFO    Notify characteristic: 1B6B9415-FF0D-47C2-9444-A5032F727B2D
-10:12:12 INFO    Write  characteristic: 1B6B9415-FF0D-47C2-9444-A5032F727B2D (with-response)
-10:12:12 INFO    Device ready (received 'CODE?').
-10:12:12 INFO    *IDN?                            -> ADDITEL,ADT226,<serial>,<fw>
-10:12:13 INFO    CALibrator:MEASure:VALUE?        -> <valore misurato>
-10:12:13 INFO    Disconnected. Done.
-```
-
-### Opzioni CLI
-
-| Opzione | Default | Descrizione |
-|---|---|---|
-| `--name` | `ADT226` | Nome advertised da cercare (substring, case-insensitive). |
-| `--address` | — | Connessione diretta a un indirizzo BLE (salta lo scan per nome). |
-| `--scan-only` | off | Solo scan: elenca i device BLE vicini ed esce. |
-| `--scan-timeout` | `10` | Durata dello scan (s). |
-| `--timeout` | `3` | Timeout per la risposta a ciascun comando (s). |
-| `--ready-timeout` | `5` | Attesa del segnale `CODE?` (s). |
-| `--commands` | `*IDN?` `CALibrator:MEASure:VALUE?` | Comandi SCPI da inviare. |
-| `--notify-uuid` | auto | Forza l'UUID della *notification characteristic*. |
-| `--write-uuid` | auto | Forza l'UUID della *write characteristic*. |
-| `--at-prefix` | off | Antepone `@` a ogni comando. |
-| `-v`, `--verbose` | off | Dump tabella GATT (UUID) + RX/TX grezzi. |
-
-Codici di uscita: `0` ok · `2` device non trovato · `3` connessione fallita ·
-`4` errore Bluetooth · `130` interrotto.
+In alternativa allo script installato: `python -m additel_ble.cli ...`.
 
 ## Come ottenere/recuperare gli UUID
 
-La comunicazione BLE avviene su due *characteristic* GATT: una con proprietà
-**`notify`/`indicate`** (da cui arrivano le risposte) e una con
-**`write`/`write-without-response`** (su cui si inviano i comandi). Spesso è la
-**stessa** characteristic.
+La comunicazione usa due characteristic GATT: una con **`notify`/`indicate`** (risposte) e una con **`write`/`write-without-response`** (comandi), spesso la stessa.
 
-> ℹ️ **Nella maggior parte dei casi non devi fare nulla:** lo script prova prima
-> gli UUID documentati da Additel e, se non presenti sul tuo modello, li
-> **scopre da solo** in base alle proprietà delle characteristic. Ti servono gli
-> UUID espliciti solo se vuoi *verificarli*, *fissarli* o se l'auto-discovery
-> sceglie la characteristic sbagliata (device con più characteristic scrivibili).
+> ℹ️ **Di norma non serve fare nulla:** la libreria prova gli UUID documentati e, se assenti sul tuo modello, li **scopre da sola**. Ti servono espliciti solo per *verificarli*, *fissarli*, o se l'auto-discovery sbaglia.
 
-### Metodo consigliato — dallo script (`-v`)
+**Dalla CLI** — il modo più semplice:
 
-1. **Trova il device** e verifica il nome:
-   ```bash
-   python adt_ble.py --scan-only
-   ```
-2. **Connettiti in modalità verbosa** per stampare l'intera tabella GATT:
-   ```bash
-   python adt_ble.py -v          # oppure: --address <indirizzo> -v
-   ```
-3. Nell'output cerca il blocco **`GATT table`**. Ogni riga `char` mostra
-   **UUID** e **proprietà**:
-   ```
-   GATT table (services / characteristics / properties):
-     service  af661820-d14a-4b21-90f8-54d58f8614f0  (...)
-       char   1b6b9415-ff0d-47c2-9444-a5032f727b2d  [write-without-response, notify]  (...)
-   ```
-   - la characteristic con **`notify`** (o `indicate`) → è la tua `--notify-uuid`;
-   - la characteristic con **`write`** (o `write-without-response`) → è la tua `--write-uuid`;
-   - se una sola characteristic ha *entrambe* le proprietà, usa quello stesso UUID per tutti e due.
-4. Lo script stampa comunque quali ha scelto:
-   ```
-   Notify characteristic: 1B6B9415-...
-   Write  characteristic: 1B6B9415-...
-   ```
-5. **Fissa gli UUID** (opzionale) per non dipendere dall'auto-discovery:
-   ```bash
-   python adt_ble.py --notify-uuid 1B6B9415-FF0D-47C2-9444-A5032F727B2D \
-                        --write-uuid  1B6B9415-FF0D-47C2-9444-A5032F727B2D
-   ```
+```bash
+adt-ble scan          # 1) trova nome/indirizzo del device
+adt-ble gatt          # 2) connette e stampa la tabella GATT
+```
 
-### Metodo alternativo — app BLE esterna
+`adt-ble gatt` evidenzia le characteristic scelte e suggerisce i flag pronti:
 
-Puoi ispezionare i servizi/characteristic anche con un explorer BLE generico,
-utile per confronto:
+```
+Selected → --notify-uuid 1B6B9415-...  --write-uuid 1B6B9415-...
+```
 
-- **nRF Connect for Mobile** (Android/iOS, gratis) — connetti il device e apri i
-  servizi per vedere UUID e proprietà.
-- **Windows**: app *Bluetooth LE Explorer* (Microsoft Store).
-- **macOS**: *Bluetooth Explorer* (Additional Tools for Xcode) o app come *LightBlue*.
-- **Linux**: `bluetoothctl` → `menu gatt` → `list-attributes`.
+Poi puoi fissarli:
 
-> **UUID documentati da Additel** (validi per l'ADT685, punto di partenza —
-> *possono differire* su altri modelli):
-> - Communication service: `AF661820-D14A-4B21-90F8-54D58F8614F0`
-> - Notify/Write characteristic: `1B6B9415-FF0D-47C2-9444-A5032F727B2D`
+```bash
+adt-ble test --notify-uuid 1B6B9415-FF0D-47C2-9444-A5032F727B2D \
+             --write-uuid  1B6B9415-FF0D-47C2-9444-A5032F727B2D
+```
+
+**Dalla libreria**:
+
+```python
+async with AdditelBLE(name="ADT226") as dev:
+    for service, char, props in dev.gatt_table():
+        print(service, char, props)
+    print("notify:", dev.notify_uuid, " write:", dev.write_uuid)
+```
+
+**Metodo alternativo — app BLE esterna**: nRF Connect (Android/iOS), *Bluetooth LE Explorer* (Windows Store), *LightBlue* / *Bluetooth Explorer* (macOS), `bluetoothctl` (Linux).
+
+> **UUID documentati da Additel** (validi per l'ADT685, punto di partenza — *possono differire*):
+> service `AF661820-D14A-4B21-90F8-54D58F8614F0`, notify/write `1B6B9415-FF0D-47C2-9444-A5032F727B2D`.
 
 ## Come funziona
 
-- **Trasporto UART-over-GATT**: si scrive su una *write characteristic* e si
-  leggono le risposte via **notifiche**.
-- Dopo l'iscrizione, il device invia una volta **`CODE?`** = è **pronto** (non
-  serve rispondere).
-- I comandi sono stringhe **SCPI** terminate da `\r\n`. Le risposte possono
-  arrivare **frammentate**: lo script le bufferizza fino al terminatore.
-- Risoluzione characteristic: **override CLI → UUID documentati → auto-discovery**.
+- **Trasporto UART-over-GATT**: si scrive su una *write characteristic*, le risposte arrivano via **notifiche**.
+- Dopo l'iscrizione il device invia una volta **`CODE?`** = pronto (non serve rispondere).
+- Comandi = stringhe **SCPI** terminate da `\r\n`; risposte spesso **frammentate** → bufferizzate fino al terminatore.
+- Risoluzione characteristic: **override → UUID documentati → auto-discovery** dalle proprietà.
 
-Dettagli completi in [`docs/additel_ble_notes.md`](docs/additel_ble_notes.md) e
-comandi SCPI in [`docs/scpi_commands.md`](docs/scpi_commands.md).
+Dettagli in [`docs/additel_ble_notes.md`](docs/additel_ble_notes.md); comandi in [`docs/scpi_commands.md`](docs/scpi_commands.md).
 
-## Note per piattaforma & permessi
+## Note per piattaforma
 
 | Sistema | Note |
 |---|---|
-| **macOS** | Al primo avvio serve concedere il permesso **Bluetooth** all'app che lancia lo script (Terminale/IDE). Se lo scan non trova nulla: *Impostazioni di Sistema → Privacy e sicurezza → Bluetooth*. Gli indirizzi sono **UUID** assegnati dal sistema, non MAC. |
-| **Windows** | Richiede **Windows 10 (build 16299+) o 11**. Bluetooth attivo. Gli indirizzi sono **MAC** (`AA:BB:CC:DD:EE:FF`). |
-| **Linux** | Richiede **BlueZ ≥ 5.43** e il servizio `bluetooth` attivo. Gli indirizzi sono **MAC**. |
-
-## Troubleshooting
-
-| Sintomo | Possibile causa / rimedio |
-|---|---|
-| "No device matching 'ADT226' found" | Device spento/lontano; Bluetooth off; (macOS) permesso Bluetooth non concesso. Prova `--scan-only`, o `--name ADT` per un match più largo. |
-| Connesso ma nessuna risposta | Prova `--at-prefix`; verifica con `-v` le characteristic notify/write; per `CALibrator:MEASure:VALUE?` il device deve essere in **modalità Calibrator**. |
-| Auto-discovery sbaglia characteristic | Recupera gli UUID corretti con `-v` e passali con `--notify-uuid`/`--write-uuid`. |
-| Nessun `CODE?` | Alcuni firmware potrebbero non inviarlo: lo script prosegue dopo il timeout. |
-| `bleak` non si installa | Aggiorna pip (`python -m pip install -U pip`) e verifica Python 3.8+. |
+| **macOS** | Primo avvio: concedi il permesso **Bluetooth** all'app/terminale (*Impostazioni → Privacy e sicurezza → Bluetooth*). Gli indirizzi sono **UUID** di sistema. |
+| **Windows** | **Windows 10 (16299+) / 11**, Bluetooth attivo. Indirizzi **MAC**. |
+| **Linux** | **BlueZ ≥ 5.43**, servizio `bluetooth` attivo. Indirizzi **MAC**. |
 
 ## Struttura del progetto
 
 ```
 ADT-BLE/
-├── adt_ble.py                 # tool CLI principale
-├── requirements.txt              # dipendenza: bleak
+├── additel_ble/              # la libreria (import: additel_ble)
+│   ├── __init__.py           # API pubblica
+│   ├── client.py             # AdditelBLE (core async)
+│   ├── sync.py               # AdditelBLESync (facciata sync)
+│   ├── scanner.py            # scan / find_device
+│   ├── protocol.py           # costanti + ResponseBuffer (senza dip. BLE)
+│   ├── exceptions.py         # gerarchia eccezioni
+│   ├── cli.py                # CLI Typer di test (adt-ble)
+│   └── py.typed
+├── examples/                 # async_usage.py, sync_usage.py
+├── tests/                    # test_protocol.py (pytest)
+├── docs/                     # note BLE, reference SCPI, materiale ufficiale Additel
+├── assets/                   # logo light/dark
+├── pyproject.toml
+├── requirements.txt
 ├── README.md
-├── LICENSE
-├── assets/
-│   ├── logo-light.svg
-│   └── logo-dark.svg
-└── docs/
-    ├── additel_ble_notes.md      # come funziona il BLE Additel (tecnico)
-    ├── scpi_commands.md          # reference comandi SCPI (curata)
-    ├── 226_227_commands.txt      # command set SCPI 226/227 completo (ufficiale)
-    ├── additel_official_bluetooth_guide.md    # copia guida ufficiale Additel
-    └── additel_official_bluetooth_example.py  # copia esempio ufficiale Additel
+└── LICENSE
+```
+
+## Sviluppo & test
+
+```bash
+python -m pip install -r requirements.txt   # editable + cli + dev
+pytest                                       # esegue i test (protocol/buffering)
+adt-ble scan                                 # prova reale dell'adapter BLE
 ```
 
 ## Riferimenti
 
-- Repo ufficiale Additel — *Additel Device Communication*:
-  <https://github.com/Additel-Code/Additel-Device-Communication>
-- Guida BLE ufficiale:
-  <https://github.com/Additel-Code/Additel-Device-Communication/blob/main/Bluetooth/bluetooth.md>
-- Programming Commands 226/227 (PDF):
-  <https://additel.com/download/programming_commands/226%20227/Programming%20Commands%20for%20226%20and%20227.pdf>
-- Manuale utente 226/227 (PDF):
-  <https://additel.com/download/user%20manual/226%20227%20User%20Manual.pdf>
-- Risorse prodotto Additel: <https://additel.com/productresources/>
-- Libreria Bleak: <https://bleak.readthedocs.io>
+- Repo ufficiale Additel — *Additel Device Communication*: <https://github.com/Additel-Code/Additel-Device-Communication>
+- Guida BLE ufficiale: <https://github.com/Additel-Code/Additel-Device-Communication/blob/main/Bluetooth/bluetooth.md>
+- Programming Commands 226/227 (PDF): <https://additel.com/download/programming_commands/226%20227/Programming%20Commands%20for%20226%20and%20227.pdf>
+- Manuale utente 226/227 (PDF): <https://additel.com/download/user%20manual/226%20227%20User%20Manual.pdf>
+- Bleak: <https://bleak.readthedocs.io> · Typer: <https://typer.tiangolo.com> · Rich: <https://rich.readthedocs.io>
 
 ## Licenza
 

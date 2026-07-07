@@ -62,10 +62,17 @@ CALibrator:MEASure:VALUE?\r\n
 CALibrator:MEASure:PRESsure:UNIT?\r\n
 ```
 
-With this tool:
+With the CLI:
 
 ```bash
-python adt_ble.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+adt-ble query "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+```
+
+From the library:
+
+```python
+async with AdditelBLE(name="ADT226") as dev:
+    print(await dev.query("CALibrator:MEASure:PRESsure:UNIT?"))
 ```
 
 For anything not listed here (signal output, HART, thermal calculation, channel

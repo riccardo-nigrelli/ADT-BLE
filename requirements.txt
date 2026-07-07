@@ -1,3 +1,7 @@
-# BLE communication library used by the demo.
-# Cross-platform: macOS (CoreBluetooth), Windows (WinRT), Linux (BlueZ).
-bleak>=0.21
+# Convenience installer for development: installs the library in editable mode
+# with the CLI and dev extras. Dependencies themselves are declared in
+# pyproject.toml (core: bleak; cli: typer, rich; dev: pytest).
+#
+#   python -m pip install -r requirements.txt
+#
+-e .[cli,dev]

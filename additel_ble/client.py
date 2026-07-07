@@ -1,0 +1,282 @@
+"""Asynchronous BLE client for Additel calibrators.
+
+:class:`AdditelBLE` is the core of the library. It scans/connects, resolves the
+GATT characteristics used for I/O (explicit override → documented UUIDs →
+auto-discovery), performs the ``CODE?`` readiness handshake, buffers fragmented
+notifications and exposes a simple ``query``/``write`` command API.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import List, Optional, Sequence, Tuple, Union
+
+from bleak import BleakClient
+
+from . import protocol
+from .exceptions import (
+    AdditelError,
+    CharacteristicNotFoundError,
+    CommandTimeoutError,
+    ConnectionFailedError,
+)
+from .scanner import find_device
+
+log = logging.getLogger(__name__)
+
+GattRow = Tuple[str, str, List[str]]  # (service_uuid, char_uuid, properties)
+
+
+class AdditelBLE:
+    """Async client for an Additel BLE calibrator.
+
+    Args:
+        name: Advertised name to scan for (substring, case-insensitive).
+            Ignored when ``address`` is given.
+        address: Connect directly to this BLE address/UUID (skips scanning).
+        notify_uuid: Force the notification characteristic UUID.
+        write_uuid: Force the write characteristic UUID.
+        at_prefix: Prefix every command with ``@`` (some firmware expects this).
+        terminator: Command terminator (defaults to ``\\r\\n``).
+        scan_timeout: Scan duration when discovering by name (seconds).
+        command_timeout: Default per-command reply timeout (seconds).
+        ready_timeout: How long to wait for the ``CODE?`` readiness signal.
+
+    Example::
+
+        async with AdditelBLE(name="ADT226") as dev:
+            print(await dev.identify())
+            print(await dev.query("CALibrator:MEASure:VALUE?"))
+    """
+
+    def __init__(
+        self,
+        name: str = "ADT226",
+        address: Optional[str] = None,
+        *,
+        notify_uuid: Optional[str] = None,
+        write_uuid: Optional[str] = None,
+        at_prefix: bool = False,
+        terminator: str = protocol.DEFAULT_TERMINATOR,
+        scan_timeout: float = 10.0,
+        command_timeout: float = 3.0,
+        ready_timeout: float = 5.0,
+    ) -> None:
+        self.name = name
+        self.address = address
+        self.override_notify = notify_uuid
+        self.override_write = write_uuid
+        self.prefix = "@" if at_prefix else ""
+        self.terminator = terminator
+        self.scan_timeout = scan_timeout
+        self.command_timeout = command_timeout
+        self.ready_timeout = ready_timeout
+
+        self._client: Optional[BleakClient] = None
+        self._buffer = protocol.ResponseBuffer()
+        self._lines: Optional["asyncio.Queue[str]"] = None
+        self._notify_char = None
+        self._write_char = None
+        self._write_response = True
+        self._ready = False
+
+    # -- properties -------------------------------------------------------- #
+
+    @property
+    def is_connected(self) -> bool:
+        return self._client is not None and self._client.is_connected
+
+    @property
+    def ready(self) -> bool:
+        """True if the device sent its ``CODE?`` readiness signal."""
+        return self._ready
+
+    @property
+    def notify_uuid(self) -> Optional[str]:
+        return str(self._notify_char.uuid) if self._notify_char else None
+
+    @property
+    def write_uuid(self) -> Optional[str]:
+        return str(self._write_char.uuid) if self._write_char else None
+
+    # -- connection -------------------------------------------------------- #
+
+    async def connect(self) -> "AdditelBLE":
+        """Scan (if needed), connect, resolve characteristics and go ready."""
+        target: Union[str, object]
+        if self.address is not None:
+            target = self.address
+        else:
+            device = await find_device(self.name, timeout=self.scan_timeout)
+            target = device
+            self.address = getattr(device, "address", None)
+
+        client = BleakClient(target)
+        try:
+            await client.connect()
+        except Exception as exc:  # noqa: BLE001 - normalise to our exception type
+            raise ConnectionFailedError(f"Failed to connect: {exc}") from exc
+        if not client.is_connected:
+            raise ConnectionFailedError("Client reported not connected.")
+
+        self._client = client
+        self._buffer.reset()
+        self._lines = asyncio.Queue()
+        self._resolve_characteristics()
+        await client.start_notify(self._notify_char, self._on_notify)
+        self._ready = await self._wait_ready()
+        return self
+
+    async def disconnect(self) -> None:
+        """Stop notifications and disconnect (safe to call multiple times)."""
+        client, self._client = self._client, None
+        if client is None:
+            return
+        try:
+            if self._notify_char is not None:
+                await client.stop_notify(self._notify_char)
+        except Exception:  # noqa: BLE001 - best effort during teardown
+            pass
+        try:
+            await client.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+        self._ready = False
+
+    async def __aenter__(self) -> "AdditelBLE":
+        return await self.connect()
+
+    async def __aexit__(self, *exc_info) -> None:
+        await self.disconnect()
+
+    # -- characteristic resolution ---------------------------------------- #
+
+    def gatt_table(self) -> List[GattRow]:
+        """Return ``(service_uuid, char_uuid, properties)`` rows for the device.
+
+        Handy for discovering the UUIDs of a specific model.
+        """
+        self._require_client()
+        rows: List[GattRow] = []
+        for service in self._client.services:
+            for char in service.characteristics:
+                rows.append((str(service.uuid), str(char.uuid), list(char.properties)))
+        return rows
+
+    def _get_char(self, uuid: Optional[str]):
+        if not uuid:
+            return None
+        try:
+            return self._client.services.get_characteristic(uuid)
+        except Exception:  # noqa: BLE001 - bleak version differences
+            return None
+
+    def _first_char_with(self, props: Sequence[str]):
+        for service in self._client.services:
+            for char in service.characteristics:
+                if any(p in char.properties for p in props):
+                    return char
+        return None
+
+    def _pick(self, candidates: Sequence[Optional[str]], props: Sequence[str], role: str):
+        for uuid in candidates:
+            char = self._get_char(uuid)
+            if char is not None and any(p in char.properties for p in props):
+                return char
+            if uuid:
+                log.warning("Requested %s UUID %s missing or lacks %s; auto-discovering.",
+                            role, uuid, "/".join(props))
+        return self._first_char_with(props)
+
+    def _resolve_characteristics(self) -> None:
+        notify = self._pick(
+            [self.override_notify, protocol.DOC_NOTIFY_UUID], protocol.NOTIFY_PROPS, "notify"
+        )
+        write = self._pick(
+            [self.override_write, protocol.DOC_WRITE_UUID], protocol.WRITE_PROPS, "write"
+        )
+        if notify is None:
+            raise CharacteristicNotFoundError(
+                "No characteristic with 'notify'/'indicate' found (cannot receive replies)."
+            )
+        if write is None:
+            raise CharacteristicNotFoundError(
+                "No characteristic with 'write' found (cannot send commands)."
+            )
+        self._notify_char = notify
+        self._write_char = write
+        self._write_response = "write" in write.properties
+        log.info("notify=%s  write=%s (%s)", notify.uuid, write.uuid,
+                 "with-response" if self._write_response else "without-response")
+
+    # -- notifications ----------------------------------------------------- #
+
+    def _on_notify(self, _sender, data: bytearray) -> None:
+        for line in self._buffer.feed(bytes(data)):
+            log.debug("RX: %s", line)
+            if self._lines is not None:
+                self._lines.put_nowait(line)
+
+    async def _wait_ready(self) -> bool:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self.ready_timeout
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                log.warning("No %r readiness signal received; continuing anyway.",
+                            protocol.READY_TOKEN)
+                return False
+            try:
+                line = await asyncio.wait_for(self._lines.get(), remaining)
+            except asyncio.TimeoutError:
+                return False
+            if line.upper().startswith(protocol.READY_TOKEN):
+                log.debug("device ready: %s", line)
+                return True
+
+    # -- command I/O ------------------------------------------------------- #
+
+    def _require_client(self) -> None:
+        if self._client is None:
+            raise AdditelError("Not connected. Call connect() first.")
+
+    async def write(self, command: str) -> None:
+        """Send a command without waiting for a reply."""
+        self._require_client()
+        payload = protocol.build_command(command, prefix=self.prefix, terminator=self.terminator)
+        log.debug("TX: %r", payload)
+        await self._client.write_gatt_char(
+            self._write_char, payload, response=self._write_response
+        )
+
+    async def query(self, command: str, *, timeout: Optional[float] = None) -> str:
+        """Send a command and return the next reply line.
+
+        Raises:
+            CommandTimeoutError: if no reply arrives within the timeout.
+        """
+        self._require_client()
+        # Drop stale/unsolicited lines so we return *this* command's reply.
+        while not self._lines.empty():
+            self._lines.get_nowait()
+        await self.write(command)
+        try:
+            return await asyncio.wait_for(
+                self._lines.get(), timeout if timeout is not None else self.command_timeout
+            )
+        except asyncio.TimeoutError:
+            raise CommandTimeoutError(f"No reply to {command!r} within timeout.") from None
+
+    # -- convenience ------------------------------------------------------- #
+
+    async def identify(self) -> str:
+        """Return the ``*IDN?`` identification string."""
+        return await self.query("*IDN?")
+
+    async def measure(self) -> str:
+        """Return the current measured value (``CALibrator:MEASure:VALUE?``).
+
+        Requires the device to be in Calibrator mode.
+        """
+        return await self.query("CALibrator:MEASure:VALUE?")

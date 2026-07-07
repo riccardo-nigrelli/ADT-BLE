@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "additel-ble"
+version = "0.1.0"
+description = "Integrable Python library for BLE communication with Additel calibrators (ADT226/227)."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Riccardo Nigrelli" }]
+keywords = ["additel", "bluetooth", "ble", "calibrator", "adt226", "adt227", "scpi", "bleak"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware",
+]
+dependencies = ["bleak>=0.21"]
+
+[project.optional-dependencies]
+cli = ["typer>=0.12", "rich>=13.0"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[project.scripts]
+adt-ble = "additel_ble.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/riccardo-nigrelli/ADT-BLE"
+Repository = "https://github.com/riccardo-nigrelli/ADT-BLE"
+
+[tool.hatch.build.targets.wheel]
+packages = ["additel_ble"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

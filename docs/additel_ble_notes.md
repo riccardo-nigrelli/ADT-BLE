@@ -38,9 +38,10 @@ libreria **cross-platform**: macOS / Windows / Linux):
 | Notification characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 | Write characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 
-**Per scoprire gli UUID reali del tuo dispositivo** esegui lo script con `-v`
-(`--verbose`): stampa l'intera tabella GATT (service + characteristic con le
-loro proprietà) e indica quali characteristic ha scelto per notify/write. Vedi
+**Per scoprire gli UUID reali del tuo dispositivo** usa `adt-ble gatt` (CLI)
+oppure `AdditelBLE.gatt_table()` dalla libreria: ottieni l'intera tabella GATT
+(service + characteristic con le proprietà) e le characteristic scelte per
+notify/write. Vedi
 la sezione *"Come ottenere/recuperare gli UUID"* del README per la procedura
 completa e le alternative (nRF Connect, `bluetoothctl`, ecc.).
 
