@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Additel-BT — BLE communication toolkit for Additel calibrators
-==============================================================
+ADT-BLE — BLE communication toolkit for Additel calibrators
+===========================================================
 
 Command-line tool to test Bluetooth Low Energy (BLE) communication with an
 Additel ADT226 multifunction process calibrator (also works for the ADT227
@@ -31,11 +31,11 @@ and the links in ``README.md``.
 
 Quick start
 -----------
-    python additel_bt.py                 # scan for "ADT226" and run the check
-    python additel_bt.py --scan-only     # just list nearby BLE devices
-    python additel_bt.py -v              # verbose: dump the GATT table (UUIDs)
-    python additel_bt.py --address <MAC-or-UUID>
-    python additel_bt.py --notify-uuid <UUID> --write-uuid <UUID>
+    python adt_ble.py                 # scan for "ADT226" and run the check
+    python adt_ble.py --scan-only     # just list nearby BLE devices
+    python adt_ble.py -v              # verbose: dump the GATT table (UUIDs)
+    python adt_ble.py --address <MAC-or-UUID>
+    python adt_ble.py --notify-uuid <UUID> --write-uuid <UUID>
 
 Requires Python 3.8+ and the `bleak` package (see requirements.txt).
 """
@@ -358,7 +358,7 @@ async def run_demo(args: argparse.Namespace) -> int:
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="additel_bt.py",
+        prog="adt_ble.py",
         description="Test BLE communication with an Additel calibrator (ADT226 by default).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

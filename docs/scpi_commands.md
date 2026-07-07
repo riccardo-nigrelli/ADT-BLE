@@ -65,7 +65,7 @@ CALibrator:MEASure:PRESsure:UNIT?\r\n
 With this tool:
 
 ```bash
-python additel_bt.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+python adt_ble.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
 ```
 
 For anything not listed here (signal output, HART, thermal calculation, channel

@@ -94,28 +94,28 @@ python -m pip install -r requirements.txt
 
 ```bash
 # Scan del device "ADT226" e verifica comunicazione (default)
-python additel_bt.py
+python adt_ble.py
 
 # Elenca solo i dispositivi BLE vicini (utile per trovare nome/indirizzo)
-python additel_bt.py --scan-only
+python adt_ble.py --scan-only
 
 # Modalità verbosa: stampa tutti i device + la tabella GATT (UUID) + RX/TX grezzi
-python additel_bt.py -v
+python adt_ble.py -v
 
 # Nome diverso (es. ADT227) o match parziale
-python additel_bt.py --name ADT227
+python adt_ble.py --name ADT227
 
 # Connessione diretta a un indirizzo (MAC su Windows/Linux, UUID su macOS)
-python additel_bt.py --address AA:BB:CC:DD:EE:FF
+python adt_ble.py --address AA:BB:CC:DD:EE:FF
 
 # Comandi SCPI personalizzati
-python additel_bt.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+python adt_ble.py --commands "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
 
 # UUID espliciti (vedi la sezione dedicata più sotto)
-python additel_bt.py --notify-uuid <UUID> --write-uuid <UUID>
+python adt_ble.py --notify-uuid <UUID> --write-uuid <UUID>
 
 # Alcuni firmware richiedono il prefisso '@' sui comandi
-python additel_bt.py --at-prefix
+python adt_ble.py --at-prefix
 ```
 
 ### Output atteso (esempio)
@@ -169,11 +169,11 @@ La comunicazione BLE avviene su due *characteristic* GATT: una con proprietà
 
 1. **Trova il device** e verifica il nome:
    ```bash
-   python additel_bt.py --scan-only
+   python adt_ble.py --scan-only
    ```
 2. **Connettiti in modalità verbosa** per stampare l'intera tabella GATT:
    ```bash
-   python additel_bt.py -v          # oppure: --address <indirizzo> -v
+   python adt_ble.py -v          # oppure: --address <indirizzo> -v
    ```
 3. Nell'output cerca il blocco **`GATT table`**. Ogni riga `char` mostra
    **UUID** e **proprietà**:
@@ -192,7 +192,7 @@ La comunicazione BLE avviene su due *characteristic* GATT: una con proprietà
    ```
 5. **Fissa gli UUID** (opzionale) per non dipendere dall'auto-discovery:
    ```bash
-   python additel_bt.py --notify-uuid 1B6B9415-FF0D-47C2-9444-A5032F727B2D \
+   python adt_ble.py --notify-uuid 1B6B9415-FF0D-47C2-9444-A5032F727B2D \
                         --write-uuid  1B6B9415-FF0D-47C2-9444-A5032F727B2D
    ```
 
@@ -246,8 +246,8 @@ comandi SCPI in [`docs/scpi_commands.md`](docs/scpi_commands.md).
 ## Struttura del progetto
 
 ```
-Additel-BT/
-├── additel_bt.py                 # tool CLI principale
+ADT-BLE/
+├── adt_ble.py                 # tool CLI principale
 ├── requirements.txt              # dipendenza: bleak
 ├── README.md
 ├── LICENSE
