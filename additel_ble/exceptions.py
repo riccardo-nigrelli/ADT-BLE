@@ -25,3 +25,20 @@ class CharacteristicNotFoundError(AdditelError):
 
 class CommandTimeoutError(AdditelError):
     """No reply was received for a command within the timeout."""
+
+
+class DeviceCommandError(AdditelError):
+    """The device flagged an error in its queue after a command.
+
+    Attributes:
+        command: the command that triggered the error.
+        code: the SCPI error code (0 means no error).
+        message: the device's error description.
+    """
+
+    def __init__(self, command: str, code: int, message: str = "") -> None:
+        self.command = command
+        self.code = code
+        self.message = message
+        detail = f": {message}" if message else ""
+        super().__init__(f"{command!r} -> device error {code}{detail}")

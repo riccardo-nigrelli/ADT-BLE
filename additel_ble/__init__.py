@@ -30,12 +30,13 @@ from __future__ import annotations
 
 import logging
 
-from .client import AdditelBLE
+from .client import AdditelBLE, GattEntry
 from .exceptions import (
     AdditelError,
     CharacteristicNotFoundError,
     CommandTimeoutError,
     ConnectionFailedError,
+    DeviceCommandError,
     DeviceNotFoundError,
 )
 from .protocol import (
@@ -43,9 +44,11 @@ from .protocol import (
     DOC_NOTIFY_UUID,
     DOC_SERVICE_UUID,
     DOC_WRITE_UUID,
+    HANDSHAKE_TOKEN,
     READY_TOKEN,
     ResponseBuffer,
     build_command,
+    parse_error,
 )
 from .scanner import find_device, scan
 from .sync import AdditelBLESync, scan_sync
@@ -59,18 +62,22 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 __all__ = [
     "AdditelBLE",
     "AdditelBLESync",
+    "GattEntry",
     "scan",
     "scan_sync",
     "find_device",
     "ResponseBuffer",
     "build_command",
+    "parse_error",
     "AdditelError",
     "DeviceNotFoundError",
     "ConnectionFailedError",
     "CharacteristicNotFoundError",
     "CommandTimeoutError",
+    "DeviceCommandError",
     "DEFAULT_TERMINATOR",
     "READY_TOKEN",
+    "HANDSHAKE_TOKEN",
     "DOC_SERVICE_UUID",
     "DOC_NOTIFY_UUID",
     "DOC_WRITE_UUID",

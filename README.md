@@ -140,7 +140,9 @@ Esempi completi in [`examples/`](examples/).
 
 ## API reference
 
-### `AdditelBLE(name="ADT226", address=None, *, notify_uuid=None, write_uuid=None, handshake="@", terminator="\r\n", scan_timeout=10.0, command_timeout=3.0, ready_timeout=5.0)`
+### `AdditelBLE(name=None, address=None, *, notify_uuid=None, write_uuid=None, handshake="@", terminator="\r\n", scan_timeout=10.0, command_timeout=3.0, ready_timeout=5.0, check_errors=True)`
+
+Passa **`name`** (scansionato) **oppure `address`** (connessione diretta).
 
 Client BLE asincrono.
 

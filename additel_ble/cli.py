@@ -16,6 +16,7 @@ Connect by name (default) or straight by address/UUID::
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -34,8 +35,8 @@ from bleak.exc import BleakError
 
 from . import __version__
 from .client import AdditelBLE
-from .exceptions import AdditelError, CommandTimeoutError
-from .scanner import find_device, scan as scan_devices
+from .exceptions import AdditelError, CommandTimeoutError, DeviceCommandError
+from .scanner import scan as scan_devices
 
 app = typer.Typer(
     add_completion=False,
@@ -54,14 +55,12 @@ def _setup_logging(verbose: bool) -> None:
         level=logging.DEBUG if verbose else logging.WARNING,
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(console=console, show_path=False, markup=True)],
+        handlers=[RichHandler(console=console, show_path=False, markup=False)],
     )
 
 
 def _run(coro):
     """Run a coroutine, mapping library errors to clean CLI output."""
-    import asyncio
-
     try:
         return asyncio.run(coro)
     except AdditelError as exc:
@@ -132,9 +131,9 @@ def scan(
 
 @app.command()
 def uuid(
-    name: str = typer.Argument("ADT226", help="Device name (substring) to look up."),
+    name: str = typer.Argument(..., help="Device name (substring) to look up."),
     timeout: float = typer.Option(10.0, "--timeout", "-t", help="Scan duration (seconds)."),
-    all: bool = typer.Option(False, "--all", help="Show every match, not just the first."),
+    show_all: bool = typer.Option(False, "--all", help="Show every match, not just the first."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logs."),
 ) -> None:
     """Scan and print the address/UUID of the device matching NAME.
@@ -154,7 +153,7 @@ def uuid(
     table = Table(title=f"Matches for '{name}'")
     table.add_column("Name", style="green")
     table.add_column("Address / UUID", style="bold cyan", no_wrap=True)
-    for dev in (matches if all else matches[:1]):
+    for dev in (matches if show_all else matches[:1]):
         table.add_row(dev.name or "[dim]<no name>[/dim]", str(dev.address))
     console.print(table)
 
@@ -164,8 +163,8 @@ def send(
     command: Optional[List[str]] = typer.Argument(
         None, help="SCPI command(s) to send. Default: *IDN?"
     ),
-    name: str = typer.Option(
-        "ADT226", "--name", "-n", help="Connect to the first device whose name contains this."
+    name: Optional[str] = typer.Option(
+        None, "--name", "-n", help="Connect to the first device whose name contains this."
     ),
     address: Optional[str] = typer.Option(
         None, "--address", "--uuid", "-a",
@@ -175,6 +174,10 @@ def send(
         "@", "--handshake",
         help="Handshake reply to the device's CODE? prompt ('' to disable).",
     ),
+    error_check: bool = typer.Option(
+        True, "--error-check/--no-error-check",
+        help="Read SYSTem:ERRor? after each command and report device errors.",
+    ),
     timeout: float = typer.Option(3.0, "--timeout", "-t", help="Per-command reply timeout (s)."),
     scan_timeout: float = typer.Option(10.0, "--scan-timeout", help="Scan duration (s)."),
     verbose: bool = typer.Option(
@@ -183,12 +186,16 @@ def send(
 ) -> None:
     """Connect (by name or address), send command(s), print the replies, disconnect."""
     _setup_logging(verbose)
+    if not name and not address:
+        console.print("[red]Error:[/red] provide a device with --name or --address/--uuid.")
+        raise typer.Exit(code=2)
     commands = list(command) if command else ["*IDN?"]
 
     async def _impl():
         async with AdditelBLE(
             name=name, address=address, scan_timeout=scan_timeout,
             command_timeout=timeout, handshake=handshake or None,
+            check_errors=error_check,
         ) as dev:
             console.print(
                 f"[green]Connected[/green] to [bold]{dev.address}[/bold]  "
@@ -201,6 +208,11 @@ def send(
                 try:
                     reply = await dev.query(cmd)
                     console.print(f"  [cyan]{cmd}[/cyan] → [green]{reply}[/green]")
+                except DeviceCommandError as exc:
+                    console.print(
+                        f"  [cyan]{cmd}[/cyan] → [red]device error {exc.code}: "
+                        f"{exc.message}[/red]"
+                    )
                 except CommandTimeoutError:
                     console.print(f"  [cyan]{cmd}[/cyan] → [yellow](sent, no reply)[/yellow]")
                 except BleakError as exc:

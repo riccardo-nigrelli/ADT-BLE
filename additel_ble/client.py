@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, NamedTuple, Optional, Sequence, Tuple, Union
 
 from bleak import BleakClient
 
@@ -20,16 +20,24 @@ from .exceptions import (
     CharacteristicNotFoundError,
     CommandTimeoutError,
     ConnectionFailedError,
+    DeviceCommandError,
 )
 from .scanner import find_device
 
 log = logging.getLogger(__name__)
 
-GattRow = Tuple[str, str, List[str]]  # (service_uuid, char_uuid, properties)
+class GattEntry(NamedTuple):
+    """One row of the device's GATT table (see :meth:`AdditelBLE.gatt_table`)."""
+
+    service: str
+    characteristic: str
+    properties: List[str]
 
 
 class AdditelBLE:
     """Async client for an Additel BLE calibrator.
+
+    Provide either ``name`` (scanned for) or ``address`` (connected to directly).
 
     Args:
         name: Advertised name to scan for (substring, case-insensitive).
@@ -43,17 +51,20 @@ class AdditelBLE:
         scan_timeout: Scan duration when discovering by name (seconds).
         command_timeout: Default per-command reply timeout (seconds).
         ready_timeout: How long to wait for the ``CODE?`` readiness signal.
+        check_errors: When True (default), read ``SYSTem:ERRor?`` after each
+            command and raise :class:`DeviceCommandError` if the device queued an
+            error. The error queue is cleared on connect and popped on each read.
 
     Example::
 
         async with AdditelBLE(name="ADT226") as dev:
-            print(await dev.identify())
-            print(await dev.query("CALibrator:MEASure:VALUE?"))
+            print(await dev.identify())          # *IDN?
+            print(await dev.measure())           # MEASure:CH? PV
     """
 
     def __init__(
         self,
-        name: str = "ADT226",
+        name: Optional[str] = None,
         address: Optional[str] = None,
         *,
         notify_uuid: Optional[str] = None,
@@ -63,6 +74,7 @@ class AdditelBLE:
         scan_timeout: float = 10.0,
         command_timeout: float = 3.0,
         ready_timeout: float = 5.0,
+        check_errors: bool = True,
     ) -> None:
         self.name = name
         self.address = address
@@ -74,6 +86,8 @@ class AdditelBLE:
         self.scan_timeout = scan_timeout
         self.command_timeout = command_timeout
         self.ready_timeout = ready_timeout
+        # After each command, read SYSTem:ERRor? and raise on a queued error.
+        self.check_errors = check_errors
 
         self._client: Optional[BleakClient] = None
         self._buffer = protocol.ResponseBuffer()
@@ -109,10 +123,12 @@ class AdditelBLE:
         target: Union[str, object]
         if self.address is not None:
             target = self.address
-        else:
+        elif self.name:
             device = await find_device(self.name, timeout=self.scan_timeout)
             target = device
             self.address = getattr(device, "address", None)
+        else:
+            raise AdditelError("Provide a device name or address to connect.")
 
         client = BleakClient(target)
         try:
@@ -132,6 +148,12 @@ class AdditelBLE:
         # prompt with the handshake token (within ~5s), so send it immediately.
         if self.handshake is not None:
             await self._send_handshake()
+        # Start from a clean error queue so later checks reflect our commands only.
+        if self.check_errors:
+            try:
+                await self._raw_write("*CLS")
+            except Exception as exc:  # noqa: BLE001 - non-fatal
+                log.debug("could not clear error queue on connect: %s", exc)
         return self
 
     async def disconnect(self) -> None:
@@ -161,17 +183,17 @@ class AdditelBLE:
 
     # -- characteristic resolution ---------------------------------------- #
 
-    def gatt_table(self) -> List[GattRow]:
-        """Return ``(service_uuid, char_uuid, properties)`` rows for the device.
+    def gatt_table(self) -> List[GattEntry]:
+        """Return the device's GATT table as :class:`GattEntry` rows.
 
         Handy for discovering the UUIDs of a specific model.
         """
         self._require_client()
-        rows: List[GattRow] = []
-        for service in self._client.services:
-            for char in service.characteristics:
-                rows.append((str(service.uuid), str(char.uuid), list(char.properties)))
-        return rows
+        return [
+            GattEntry(str(service.uuid), str(char.uuid), list(char.properties))
+            for service in self._client.services
+            for char in service.characteristics
+        ]
 
     def _get_char(self, uuid: Optional[str]):
         if not uuid:
@@ -249,9 +271,10 @@ class AdditelBLE:
         # write-with-response on these characteristics makes the device reject the
         # write with ATT error 0x0D ("Invalid Attribute Value Length").
         self._write_response = "write-without-response" not in write.properties
-        log.info("notify=%s  write=%s  props=[%s] -> %s", notify.uuid, write.uuid,
-                 ", ".join(write.properties),
-                 "with-response" if self._write_response else "without-response")
+        log.info("resolved notify=%s write=%s (%s); write properties: %s",
+                 notify.uuid, write.uuid,
+                 "with-response" if self._write_response else "without-response",
+                 ", ".join(write.properties))
 
     # -- notifications ----------------------------------------------------- #
 
@@ -285,6 +308,13 @@ class AdditelBLE:
         if self._client is None:
             raise AdditelError("Not connected. Call connect() first.")
 
+    def _drain(self) -> None:
+        """Discard any buffered/unsolicited reply lines."""
+        if self._lines is None:
+            return
+        while not self._lines.empty():
+            self._lines.get_nowait()
+
     async def _send_handshake(self) -> None:
         """Answer the device's ``CODE?`` prompt to unlock command processing.
 
@@ -300,13 +330,10 @@ class AdditelBLE:
             )
         except Exception as exc:  # noqa: BLE001
             log.warning("handshake write failed: %s", exc)
-        # Discard any handshake acknowledgement so it isn't taken as a reply.
-        if self._lines is not None:
-            while not self._lines.empty():
-                self._lines.get_nowait()
+        self._drain()  # discard any handshake acknowledgement
 
-    async def write(self, command: str) -> None:
-        """Send a command without waiting for a reply."""
+    async def _raw_write(self, command: str) -> None:
+        """Write a command to the device (no reply, no error check)."""
         self._require_client()
         payload = protocol.build_command(command, terminator=self.terminator)
         log.debug("TX: %r", payload)
@@ -314,23 +341,60 @@ class AdditelBLE:
             self._write_char, payload, response=self._write_response
         )
 
-    async def query(self, command: str, *, timeout: Optional[float] = None) -> str:
+    async def _raw_query(self, command: str, timeout: float) -> Optional[str]:
+        """Write a command and return the next reply line, or None on timeout."""
+        self._drain()  # drop stale lines so we return *this* command's reply
+        await self._raw_write(command)
+        try:
+            return await asyncio.wait_for(self._lines.get(), timeout)
+        except asyncio.TimeoutError:
+            return None
+
+    async def _read_error(self) -> Tuple[int, str]:
+        """Read and pop the top of the device error queue (``SYSTem:ERRor?``)."""
+        resp = await self._raw_query("SYSTem:ERRor?", self.command_timeout)
+        if resp is None:
+            return 0, ""  # queue unreadable — don't raise a false error
+        return protocol.parse_error(resp)
+
+    async def _raise_on_error(self, command: str) -> None:
+        code, message = await self._read_error()
+        if code:
+            raise DeviceCommandError(command, code, message)
+
+    def _should_check(self, override: Optional[bool]) -> bool:
+        return self.check_errors if override is None else override
+
+    async def write(self, command: str, *, check_error: Optional[bool] = None) -> None:
+        """Send a command without waiting for a reply.
+
+        With error-checking on, the device error queue is read afterwards and a
+        :class:`DeviceCommandError` is raised if the device flagged a problem.
+        """
+        await self._raw_write(command)
+        if self._should_check(check_error):
+            await self._raise_on_error(command)
+
+    async def query(
+        self, command: str, *, timeout: Optional[float] = None,
+        check_error: Optional[bool] = None,
+    ) -> str:
         """Send a command and return the next reply line.
 
         Raises:
+            DeviceCommandError: if error-checking is on and the device queued an
+                error for this command (e.g. wrong mode, missing parameter).
             CommandTimeoutError: if no reply arrives within the timeout.
         """
         self._require_client()
-        # Drop stale/unsolicited lines so we return *this* command's reply.
-        while not self._lines.empty():
-            self._lines.get_nowait()
-        await self.write(command)
-        try:
-            return await asyncio.wait_for(
-                self._lines.get(), timeout if timeout is not None else self.command_timeout
-            )
-        except asyncio.TimeoutError:
-            raise CommandTimeoutError(f"No reply to {command!r} within timeout.") from None
+        reply = await self._raw_query(
+            command, timeout if timeout is not None else self.command_timeout
+        )
+        if self._should_check(check_error):
+            await self._raise_on_error(command)
+        if reply is None:
+            raise CommandTimeoutError(f"No reply to {command!r} within timeout.")
+        return reply
 
     # -- convenience ------------------------------------------------------- #
 
@@ -353,4 +417,4 @@ class AdditelBLE:
         Handy for diagnosing a command that returned no reply: the device
         queues the reason (bad parameter, wrong mode, unknown header, ...).
         """
-        return await self.query("SYSTem:ERRor?")
+        return await self.query("SYSTem:ERRor?", check_error=False)

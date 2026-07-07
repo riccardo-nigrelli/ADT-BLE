@@ -11,7 +11,7 @@ Example::
 
     with AdditelBLESync(name="ADT226") as dev:
         print(dev.identify())
-        print(dev.query("CALibrator:MEASure:VALUE?"))
+        print(dev.measure())
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import asyncio
 import threading
 from typing import List, Optional
 
-from .client import AdditelBLE, GattRow
+from .client import AdditelBLE, GattEntry
 
 
 class _LoopThread:
@@ -55,7 +55,11 @@ class AdditelBLESync:
 
     # connection
     def connect(self) -> "AdditelBLESync":
-        self._loop.run(self._dev.connect())
+        try:
+            self._loop.run(self._dev.connect())
+        except BaseException:
+            self._loop.close()  # don't leak the loop thread on a failed connect
+            raise
         return self
 
     def disconnect(self) -> None:
@@ -83,7 +87,10 @@ class AdditelBLESync:
     def measure(self) -> str:
         return self._loop.run(self._dev.measure())
 
-    def gatt_table(self) -> List[GattRow]:
+    def error(self) -> str:
+        return self._loop.run(self._dev.error())
+
+    def gatt_table(self) -> List[GattEntry]:
         return self._dev.gatt_table()
 
     # passthrough properties

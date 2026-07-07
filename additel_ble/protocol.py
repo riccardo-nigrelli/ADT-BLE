@@ -6,7 +6,7 @@ response-reassembly logic, so it can be unit-tested and reused in isolation.
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Tuple
 
 # --------------------------------------------------------------------------- #
 # Documented UUIDs (from Additel's official BLE reference).
@@ -41,6 +41,24 @@ def build_command(
 ) -> bytes:
     """Encode an SCPI command to the bytes to write to the device."""
     return f"{prefix}{command}{terminator}".encode("utf-8")
+
+
+def parse_error(response: str) -> Tuple[int, str]:
+    """Parse a ``SYSTem:ERRor?`` reply into ``(code, message)``.
+
+    The device answers in SCPI form ``<code>,"<message>"`` where code ``0`` means
+    "No error". Unrecognised formats yield ``(0, <raw>)`` so callers never raise a
+    false error on a parsing quirk.
+    """
+    text = response.strip()
+    if not text:
+        return 0, ""
+    head, _, tail = text.partition(",")
+    try:
+        code = int(head.strip())
+    except ValueError:
+        return 0, text
+    return code, tail.strip().strip('"')
 
 
 class ResponseBuffer:
