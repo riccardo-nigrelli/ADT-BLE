@@ -19,7 +19,7 @@
 
 ---
 
-**Additel·BT** scansiona, si connette e dialoga via BLE con un calibratore
+**ADT BLE** scansiona, si connette e dialoga via BLE con un calibratore
 Additel: trova il device → si connette → si iscrive alle notifiche → attende il
 segnale di pronto `CODE?` → invia comandi **SCPI** (es. `*IDN?`, lettura misura)
 → stampa le risposte → si disconnette.
@@ -64,8 +64,8 @@ risposta (niente `sleep` fissi), override degli UUID e gestione degli errori.
 ## Installazione
 
 ```bash
-git clone git@github.com:riccardo-nigrelli/Additel-BT.git
-cd Additel-BT
+git clone git@github.com:riccardo-nigrelli/ADT-BLE.git
+cd ADT-BLE
 ```
 
 Crea un ambiente virtuale e installa le dipendenze:
