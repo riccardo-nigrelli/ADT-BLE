@@ -1,21 +1,21 @@
 """Test CLI for the additel_ble library, built with Typer + Rich.
 
-This is a thin, separate layer on top of the library: it only uses the public
-API. Install it with the ``cli`` extra::
+A thin layer over the library, using only its public API. Install with the
+``cli`` extra (``pip install "additel-ble[cli]"``).
 
-    pip install "additel-ble[cli]"
+Two commands, matching the natural flow:
 
-Then::
+    adt-ble scan                       # 1) find devices (address + name)
+    adt-ble send "*IDN?"               # 2) connect, send command(s), disconnect
 
-    adt-ble scan
-    adt-ble gatt            # discover the device UUIDs
-    adt-ble test
-    adt-ble query "*IDN?"
+Connect by name (default) or straight by address/UUID::
+
+    adt-ble send --name ADT226 "*IDN?"
+    adt-ble send --uuid 1234ABCD-...   "*IDN?" "CALibrator:MEASure:VALUE?"
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import List, Optional
 
@@ -38,11 +38,9 @@ from .scanner import scan as scan_devices
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
-    help="Test BLE communication with Additel calibrators (ADT226 by default).",
+    help="Scan and talk to Additel calibrators over Bluetooth Low Energy.",
 )
 console = Console()
-
-DEFAULT_COMMANDS = ["*IDN?", "CALibrator:MEASure:VALUE?"]
 
 
 # --------------------------------------------------------------------------- #
@@ -60,6 +58,8 @@ def _setup_logging(verbose: bool) -> None:
 
 def _run(coro):
     """Run a coroutine, mapping library errors to clean CLI output."""
+    import asyncio
+
     try:
         return asyncio.run(coro)
     except AdditelError as exc:
@@ -67,6 +67,21 @@ def _run(coro):
         raise typer.Exit(code=1)
     except KeyboardInterrupt:  # pragma: no cover
         raise typer.Exit(code=130)
+
+
+def _print_gatt(rows, notify_uuid, write_uuid) -> None:
+    table = Table(title="GATT table")
+    table.add_column("Service", style="dim")
+    table.add_column("Characteristic", style="cyan")
+    table.add_column("Properties", style="magenta")
+    for service_uuid, char_uuid, props in rows:
+        mark = ""
+        if char_uuid.lower() == (notify_uuid or "").lower():
+            mark += " [green]◀ notify[/green]"
+        if char_uuid.lower() == (write_uuid or "").lower():
+            mark += " [yellow]◀ write[/yellow]"
+        table.add_row(service_uuid, char_uuid + mark, ", ".join(props))
+    console.print(table)
 
 
 def _version_callback(value: bool) -> None:
@@ -91,11 +106,11 @@ def _main(
 
 @app.command()
 def scan(
-    timeout: float = typer.Option(10.0, help="Scan duration (seconds)."),
-    name: Optional[str] = typer.Option(None, help="Filter by name substring."),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
+    timeout: float = typer.Option(10.0, "--timeout", "-t", help="Scan duration (seconds)."),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Filter by name substring."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logs."),
 ) -> None:
-    """List nearby BLE devices."""
+    """Scan and list nearby BLE devices (address + name)."""
     _setup_logging(verbose)
     devices = _run(scan_devices(timeout))
     if name:
@@ -110,118 +125,48 @@ def scan(
 
 
 @app.command()
-def gatt(
-    name: str = typer.Option("ADT226", help="Advertised name to scan for."),
-    address: Optional[str] = typer.Option(None, help="Connect directly to this address."),
-    scan_timeout: float = typer.Option(10.0, help="Scan duration (seconds)."),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
-) -> None:
-    """Connect and print the GATT table — use this to discover the UUIDs."""
-    _setup_logging(verbose)
-
-    async def _impl():
-        dev = AdditelBLE(name=name, address=address, scan_timeout=scan_timeout)
-        await dev.connect()
-        try:
-            return dev.gatt_table(), dev.notify_uuid, dev.write_uuid, dev.address
-        finally:
-            await dev.disconnect()
-
-    rows, notify_uuid, write_uuid, addr = _run(_impl())
-
-    console.print(f"Connected to [bold]{addr}[/bold]\n")
-    table = Table(title="GATT table")
-    table.add_column("Service", style="dim")
-    table.add_column("Characteristic", style="cyan")
-    table.add_column("Properties", style="magenta")
-    for service_uuid, char_uuid, props in rows:
-        mark = ""
-        if char_uuid.lower() == (notify_uuid or "").lower():
-            mark += " [green]◀ notify[/green]"
-        if char_uuid.lower() == (write_uuid or "").lower():
-            mark += " [yellow]◀ write[/yellow]"
-        table.add_row(service_uuid, char_uuid + mark, ", ".join(props))
-    console.print(table)
-    console.print(
-        f"\nSelected → [green]--notify-uuid[/green] {notify_uuid}  "
-        f"[yellow]--write-uuid[/yellow] {write_uuid}"
-    )
-
-
-@app.command()
-def test(
-    name: str = typer.Option("ADT226", help="Advertised name to scan for."),
-    address: Optional[str] = typer.Option(None, help="Connect directly to this address."),
-    scan_timeout: float = typer.Option(10.0, help="Scan duration (seconds)."),
-    timeout: float = typer.Option(3.0, help="Per-command reply timeout (seconds)."),
-    notify_uuid: Optional[str] = typer.Option(None, help="Override notify characteristic UUID."),
-    write_uuid: Optional[str] = typer.Option(None, help="Override write characteristic UUID."),
+def send(
+    command: Optional[List[str]] = typer.Argument(
+        None, help="SCPI command(s) to send. Default: *IDN?"
+    ),
+    name: str = typer.Option(
+        "ADT226", "--name", "-n", help="Connect to the first device whose name contains this."
+    ),
+    address: Optional[str] = typer.Option(
+        None, "--address", "--uuid", "-a",
+        help="Connect straight to this address/UUID (skips the name scan).",
+    ),
     at_prefix: bool = typer.Option(False, "--at-prefix", help="Prefix commands with '@'."),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
+    timeout: float = typer.Option(3.0, "--timeout", "-t", help="Per-command reply timeout (s)."),
+    scan_timeout: float = typer.Option(10.0, "--scan-timeout", help="Scan duration (s)."),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Also print the GATT table (UUIDs) and debug logs."
+    ),
 ) -> None:
-    """Connect and run the default communication check (*IDN? + a measurement)."""
+    """Connect (by name or address), send command(s), print the replies, disconnect."""
     _setup_logging(verbose)
+    commands = list(command) if command else ["*IDN?"]
 
     async def _impl():
-        results = []
-        async with AdditelBLE(
-            name=name, address=address, scan_timeout=scan_timeout,
-            command_timeout=timeout, notify_uuid=notify_uuid,
-            write_uuid=write_uuid, at_prefix=at_prefix,
-        ) as dev:
-            console.print(
-                f"Connected to [bold]{dev.address}[/bold] "
-                f"({'ready' if dev.ready else 'no CODE? signal'})\n"
-            )
-            for command in DEFAULT_COMMANDS:
-                try:
-                    results.append((command, await dev.query(command)))
-                except CommandTimeoutError:
-                    results.append((command, None))
-        return results
-
-    results = _run(_impl())
-    table = Table(title="Communication test")
-    table.add_column("Command", style="cyan", no_wrap=True)
-    table.add_column("Reply", style="green")
-    for command, reply in results:
-        table.add_row(command, reply if reply is not None else "[red](no reply)[/red]")
-    console.print(table)
-
-
-@app.command()
-def query(
-    commands: List[str] = typer.Argument(..., help="One or more SCPI commands."),
-    name: str = typer.Option("ADT226", help="Advertised name to scan for."),
-    address: Optional[str] = typer.Option(None, help="Connect directly to this address."),
-    scan_timeout: float = typer.Option(10.0, help="Scan duration (seconds)."),
-    timeout: float = typer.Option(3.0, help="Per-command reply timeout (seconds)."),
-    at_prefix: bool = typer.Option(False, "--at-prefix", help="Prefix commands with '@'."),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
-) -> None:
-    """Send one or more SCPI commands and print the replies."""
-    _setup_logging(verbose)
-
-    async def _impl():
-        results = []
         async with AdditelBLE(
             name=name, address=address, scan_timeout=scan_timeout,
             command_timeout=timeout, at_prefix=at_prefix,
         ) as dev:
-            console.print(f"Connected to [bold]{dev.address}[/bold]\n")
-            for command in commands:
+            console.print(
+                f"[green]Connected[/green] to [bold]{dev.address}[/bold]  "
+                f"[dim](notify {dev.notify_uuid} · write {dev.write_uuid})[/dim]\n"
+            )
+            if verbose:
+                _print_gatt(dev.gatt_table(), dev.notify_uuid, dev.write_uuid)
+            for cmd in commands:
                 try:
-                    results.append((command, await dev.query(command)))
+                    reply = await dev.query(cmd)
+                    console.print(f"  [cyan]{cmd}[/cyan] → [green]{reply}[/green]")
                 except CommandTimeoutError:
-                    results.append((command, None))
-        return results
+                    console.print(f"  [cyan]{cmd}[/cyan] → [red](no reply)[/red]")
+        console.print("\n[dim]Disconnected.[/dim]")
 
-    results = _run(_impl())
-    for command, reply in results:
-        if reply is None:
-            console.print(f"[cyan]{command}[/cyan] → [red](no reply)[/red]")
-        else:
-            console.print(f"[cyan]{command}[/cyan] → [green]{reply}[/green]")
+    _run(_impl())
 
 
 def main() -> None:

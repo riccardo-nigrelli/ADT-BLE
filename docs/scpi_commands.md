@@ -65,7 +65,7 @@ CALibrator:MEASure:PRESsure:UNIT?\r\n
 With the CLI:
 
 ```bash
-adt-ble query "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
+adt-ble send "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
 ```
 
 From the library:

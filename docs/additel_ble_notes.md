@@ -38,7 +38,7 @@ libreria **cross-platform**: macOS / Windows / Linux):
 | Notification characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 | Write characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 
-**Per scoprire gli UUID reali del tuo dispositivo** usa `adt-ble gatt` (CLI)
+**Per scoprire gli UUID reali del tuo dispositivo** usa `adt-ble send -v` (CLI)
 oppure `AdditelBLE.gatt_table()` dalla libreria: ottieni l'intera tabella GATT
 (service + characteristic con le proprietà) e le characteristic scelte per
 notify/write. Vedi

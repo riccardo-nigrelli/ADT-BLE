@@ -167,18 +167,22 @@ Stessa firma e stessi metodi, ma **bloccanti** (usa un event loop in un thread d
 
 ## CLI di test (`adt-ble`)
 
+Due comandi, semplici e chiari: **`scan`** e **`send`**.
+
 ```bash
 adt-ble --help
-adt-ble scan                       # elenca i device BLE vicini
-adt-ble scan --name ADT --timeout 5
-adt-ble gatt                       # connette e stampa la tabella GATT (UUID)
-adt-ble test                       # *IDN? + lettura misura
-adt-ble test --name ADT227 -v
-adt-ble query "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"
-adt-ble query "*IDN?" --at-prefix  # alcuni firmware vogliono il prefisso '@'
+adt-ble scan                          # 1) elenca i device BLE vicini (indirizzo + nome)
+adt-ble scan --name ADT               #    filtra per nome
+
+adt-ble send "*IDN?"                   # 2) connetti (nome ADT226 di default), invia, disconnetti
+adt-ble send --name ADT227 "*IDN?"     #    connetti per NOME
+adt-ble send --uuid <ADDRESS> "*IDN?"  #    oppure per INDIRIZZO/UUID
+adt-ble send "*IDN?" "CALibrator:MEASure:PRESsure:UNIT?"   # più comandi in sequenza
+adt-ble send -v "*IDN?"                #    -v mostra anche la tabella GATT (UUID)
+adt-ble send --at-prefix "*IDN?"       #    alcuni firmware vogliono il prefisso '@'
 ```
 
-In alternativa allo script installato: `python -m additel_ble.cli ...`.
+`adt-ble send` senza comando invia `*IDN?`. In alternativa: `python -m additel_ble.cli ...`.
 
 ## Come ottenere/recuperare gli UUID
 
@@ -190,20 +194,20 @@ La comunicazione usa due characteristic GATT: una con **`notify`/`indicate`** (r
 
 ```bash
 adt-ble scan          # 1) trova nome/indirizzo del device
-adt-ble gatt          # 2) connette e stampa la tabella GATT
+adt-ble send -v       # 2) connette e stampa la tabella GATT (con -v)
 ```
 
-`adt-ble gatt` evidenzia le characteristic scelte e suggerisce i flag pronti:
+`adt-ble send -v` mostra la tabella GATT ed evidenzia le characteristic scelte
+per notify/write (visibili anche nella riga "Connected to …").
 
-```
-Selected → --notify-uuid 1B6B9415-...  --write-uuid 1B6B9415-...
-```
+Per **fissare** gli UUID in un tuo programma, passali al costruttore della libreria:
 
-Poi puoi fissarli:
-
-```bash
-adt-ble test --notify-uuid 1B6B9415-FF0D-47C2-9444-A5032F727B2D \
-             --write-uuid  1B6B9415-FF0D-47C2-9444-A5032F727B2D
+```python
+AdditelBLE(
+    name="ADT226",
+    notify_uuid="1B6B9415-FF0D-47C2-9444-A5032F727B2D",
+    write_uuid="1B6B9415-FF0D-47C2-9444-A5032F727B2D",
+)
 ```
 
 **Dalla libreria**:

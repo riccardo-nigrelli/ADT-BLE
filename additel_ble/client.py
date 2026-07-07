@@ -129,20 +129,23 @@ class AdditelBLE:
         return self
 
     async def disconnect(self) -> None:
-        """Stop notifications and disconnect (safe to call multiple times)."""
+        """Disconnect from the device (safe to call multiple times).
+
+        We deliberately do **not** call ``stop_notify()`` here. ``disconnect()``
+        tears notifications down on its own, and issuing an explicit CCCD write
+        during teardown makes some devices (and macOS/CoreBluetooth) surface a
+        spurious "Invalid Attribute Value Length" GATT error *after* the
+        disconnect. This mirrors Additel's official example, which never calls
+        ``stop_notify``.
+        """
         client, self._client = self._client, None
+        self._ready = False
         if client is None:
             return
         try:
-            if self._notify_char is not None:
-                await client.stop_notify(self._notify_char)
+            await client.disconnect()
         except Exception:  # noqa: BLE001 - best effort during teardown
             pass
-        try:
-            await client.disconnect()
-        except Exception:  # noqa: BLE001
-            pass
-        self._ready = False
 
     async def __aenter__(self) -> "AdditelBLE":
         return await self.connect()
