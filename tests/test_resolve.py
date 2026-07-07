@@ -88,3 +88,15 @@ def test_separate_notify_and_write_characteristics():
     assert dev.notify_uuid == "uuid-notify"
     assert dev.write_uuid == "uuid-write"
     assert dev._write_response is True
+
+
+def test_prefers_combined_char_over_decoy_write():
+    # Documented UUID absent, and a stray writable characteristic appears BEFORE
+    # the real notify+write UART one. Auto-discovery must pick the combined
+    # characteristic so replies come back (regression for "(sent, no reply)").
+    decoy = FakeChar("decoy-write", ["write", "write-without-response"])
+    real = FakeChar("real-uart", ["notify", "write-without-response"])
+    dev = _resolve([decoy, real])
+    assert dev.notify_uuid == "real-uart"
+    assert dev.write_uuid == "real-uart"
+    assert dev._write_response is False

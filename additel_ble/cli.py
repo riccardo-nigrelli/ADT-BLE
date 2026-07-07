@@ -35,7 +35,7 @@ from bleak.exc import BleakError
 from . import __version__
 from .client import AdditelBLE
 from .exceptions import AdditelError, CommandTimeoutError
-from .scanner import scan as scan_devices
+from .scanner import find_device, scan as scan_devices
 
 app = typer.Typer(
     add_completion=False,
@@ -131,6 +131,35 @@ def scan(
 
 
 @app.command()
+def uuid(
+    name: str = typer.Argument("ADT226", help="Device name (substring) to look up."),
+    timeout: float = typer.Option(10.0, "--timeout", "-t", help="Scan duration (seconds)."),
+    all: bool = typer.Option(False, "--all", help="Show every match, not just the first."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logs."),
+) -> None:
+    """Scan and print the address/UUID of the device matching NAME.
+
+    On macOS the address is the system-assigned UUID; on Windows/Linux it is
+    the MAC address. Pass this value to `send --uuid ...`.
+    """
+    _setup_logging(verbose)
+    devices = _run(scan_devices(timeout))
+    matches = [d for d in devices if d.name and name.lower() in d.name.lower()]
+    if not matches:
+        console.print(
+            f"[red]No device matching '{name}' found[/red] ({len(devices)} device(s) seen)."
+        )
+        raise typer.Exit(code=2)
+
+    table = Table(title=f"Matches for '{name}'")
+    table.add_column("Name", style="green")
+    table.add_column("Address / UUID", style="bold cyan", no_wrap=True)
+    for dev in (matches if all else matches[:1]):
+        table.add_row(dev.name or "[dim]<no name>[/dim]", str(dev.address))
+    console.print(table)
+
+
+@app.command()
 def send(
     command: Optional[List[str]] = typer.Argument(
         None, help="SCPI command(s) to send. Default: *IDN?"
@@ -160,7 +189,8 @@ def send(
         ) as dev:
             console.print(
                 f"[green]Connected[/green] to [bold]{dev.address}[/bold]  "
-                f"[dim](notify {dev.notify_uuid} · write {dev.write_uuid})[/dim]\n"
+                f"[dim]({'ready' if dev.ready else 'no CODE? signal'} · "
+                f"notify {dev.notify_uuid} · write {dev.write_uuid})[/dim]\n"
             )
             if verbose:
                 _print_gatt(dev.gatt_table(), dev.notify_uuid, dev.write_uuid)

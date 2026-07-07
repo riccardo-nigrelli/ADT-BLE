@@ -182,23 +182,52 @@ class AdditelBLE:
                     return char
         return None
 
-    def _pick(self, candidates: Sequence[Optional[str]], props: Sequence[str], role: str):
+    def _pick_pinned(self, candidates: Sequence[Optional[str]], props: Sequence[str]):
+        """First candidate UUID that exists and has one of ``props`` (no fallback)."""
         for uuid in candidates:
             char = self._get_char(uuid)
             if char is not None and any(p in char.properties for p in props):
                 return char
             if uuid:
-                log.warning("Requested %s UUID %s missing or lacks %s; auto-discovering.",
-                            role, uuid, "/".join(props))
-        return self._first_char_with(props)
+                log.warning("Requested UUID %s is missing or lacks %s.",
+                            uuid, "/".join(props))
+        return None
+
+    def _first_char_with_all(self, props_a: Sequence[str], props_b: Sequence[str]):
+        """First characteristic supporting both a ``props_a`` and a ``props_b`` property."""
+        for service in self._client.services:
+            for char in service.characteristics:
+                if (any(p in char.properties for p in props_a)
+                        and any(p in char.properties for p in props_b)):
+                    return char
+        return None
 
     def _resolve_characteristics(self) -> None:
-        notify = self._pick(
-            [self.override_notify, protocol.DOC_NOTIFY_UUID], protocol.NOTIFY_PROPS, "notify"
+        # 1) Explicit overrides / documented UUIDs win.
+        notify = self._pick_pinned(
+            [self.override_notify, protocol.DOC_NOTIFY_UUID], protocol.NOTIFY_PROPS
         )
-        write = self._pick(
-            [self.override_write, protocol.DOC_WRITE_UUID], protocol.WRITE_PROPS, "write"
+        write = self._pick_pinned(
+            [self.override_write, protocol.DOC_WRITE_UUID], protocol.WRITE_PROPS
         )
+
+        # 2) Otherwise prefer a SINGLE characteristic that does both notify and
+        #    write (the Additel UART pattern). This keeps command writes and reply
+        #    notifications on the same characteristic, so replies actually come back
+        #    — picking a stray writable characteristic instead means the command is
+        #    written but the device never answers.
+        if notify is None or write is None:
+            combined = self._first_char_with_all(protocol.NOTIFY_PROPS, protocol.WRITE_PROPS)
+            if combined is not None:
+                notify = notify or combined
+                write = write or combined
+
+        # 3) Last resort: independent discovery.
+        if notify is None:
+            notify = self._first_char_with(protocol.NOTIFY_PROPS)
+        if write is None:
+            write = self._first_char_with(protocol.WRITE_PROPS)
+
         if notify is None:
             raise CharacteristicNotFoundError(
                 "No characteristic with 'notify'/'indicate' found (cannot receive replies)."
@@ -221,8 +250,9 @@ class AdditelBLE:
     # -- notifications ----------------------------------------------------- #
 
     def _on_notify(self, _sender, data: bytearray) -> None:
+        log.debug("RX raw: %r", bytes(data))
         for line in self._buffer.feed(bytes(data)):
-            log.debug("RX: %s", line)
+            log.debug("RX line: %s", line)
             if self._lines is not None:
                 self._lines.put_nowait(line)
 

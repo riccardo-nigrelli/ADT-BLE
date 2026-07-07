@@ -178,6 +178,7 @@ Due comandi, semplici e chiari: **`scan`** e **`send`**.
 adt-ble --help
 adt-ble scan                          # 1) elenca i device BLE vicini (indirizzo + nome)
 adt-ble scan --name ADT               #    filtra per nome
+adt-ble uuid ADT226                   #    mostra l'indirizzo/UUID del device dato il nome
 
 adt-ble send "*IDN?"                   # 2) connetti (nome ADT226 di default), invia, disconnetti
 adt-ble send --name ADT227 "*IDN?"     #    connetti per NOME
