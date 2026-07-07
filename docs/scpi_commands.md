@@ -32,6 +32,34 @@ This tool sends `\r\n` (configurable in code via `DEFAULT_TERMINATOR`).
 > *serial, sub-module type, firmware version, name*; for firmware 28+ it is
 > *serial, firmware version, sub-module type, name*. Don't hard-code positions.
 
+## Read the current measured value
+
+Use **`MEASure:CH? PV`** — note the required `PV` parameter (separated by a
+space). This returns the present value of the active measure channel and works
+regardless of the current screen/mode. `AdditelBLE.measure()` sends exactly this.
+
+```
+MEASure:CH? PV\r\n
+```
+
+## Why a command returns no reply
+
+`*IDN?` always answers (IEEE 488.2 common command, no parameter, no mode). Most
+other commands don't answer unless used correctly:
+
+- **Missing parameter.** Per the manual §1, mnemonic and parameter are separated
+  by a space. `MEASure:CH?` alone → no reply; `MEASure:CH? PV` → replies.
+- **Wrong mode.** `CALibrator:...` commands only reply in **Calibrator mode**;
+  other commands depend on the active function.
+- **Set commands** (e.g. `...:UNIT <id>`) legitimately return nothing.
+
+**Diagnose it:** the device queues the reason instead of replying. Read it with
+**`SYSTem:ERRor?`** (or `AdditelBLE.error()`) right after the silent command —
+it returns the error (bad parameter / wrong mode / unknown header), or
+`0,"No error"`. Mode-independent commands that always reply and are good for a
+smoke test: `SYSTem:VERSion?`, `SYSTem:DATE?`, `SYSTem:BLUEtooth:NAMe`,
+`SYSTem:BATTery:CAPacity?`.
+
 ## Measurement (Calibrator mode)
 
 > These require the device to be in **Calibrator mode**.

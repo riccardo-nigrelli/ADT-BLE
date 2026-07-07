@@ -339,8 +339,18 @@ class AdditelBLE:
         return await self.query("*IDN?")
 
     async def measure(self) -> str:
-        """Return the current measured value (``CALibrator:MEASure:VALUE?``).
+        """Return the current measured value (``MEASure:CH? PV``).
 
-        Requires the device to be in Calibrator mode.
+        This reads the present value of the active measure channel and works
+        regardless of the device screen/mode. (``CALibrator:MEASure:VALUE?``
+        is an alternative that only replies in Calibrator mode.)
         """
-        return await self.query("CALibrator:MEASure:VALUE?")
+        return await self.query("MEASure:CH? PV")
+
+    async def error(self) -> str:
+        """Read the next entry from the device error queue (``SYSTem:ERRor?``).
+
+        Handy for diagnosing a command that returned no reply: the device
+        queues the reason (bad parameter, wrong mode, unknown header, ...).
+        """
+        return await self.query("SYSTem:ERRor?")
