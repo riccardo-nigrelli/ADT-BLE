@@ -1,0 +1,1543 @@
+                                  ADT226/227 Commands set- User Version
+
+1   Commands Instruction
+
+    (1)Each command includes two parts: mnemonic and parameter. The mnemonic and parameter are separated by a
+
+space;
+
+    For example : MEASure[:SCALar]:CH? <value>，MEASure[:SCALar]:CH? is the mnemonic，<value> is the parameter to
+
+be input，and they need to be separated by a space. If use this command for acquiring the current measured value, just input
+
+MEASure:CH? PV
+
+    (2)About the mnemonic
+
+        the [] in mnemonic is optional, can be omitted.
+
+    For example : MEASure[:SCALar]:AELectricity? It can be:MEASure:SCALar:AELectricity?Or MEASure:AELectricity?
+
+        the (num1:num2) in mnemonic indicates range of number, it needs to be input with the actual number.
+
+    For example : SENSe:ELECtricity:TCCHannel(1:4)? if use this command for acquiring the configuration of the first TC
+
+channel, just input: SENSe:ELECtricity:TCCHannel1?
+
+    (3)About the parameter
+
+    Each parameter in this set is marked with<> (do not enter angle brackets when converting to actual instructions) and
+
+separated by commas.
+
+                                                              1
+     (4) Terminator
+
+     The SCPI command must include a command terminator, which can be one of the follows (excluding double quotation
+
+marks): "\r\n", "\r", "\n" or "\0".
+
+
+1.1 IEEE488.2 common commands
+No               Commands                                Description                       Parameter          Returned value
+
+                                      Clear the following registers:
+
+                                      Standard event register;
+
+                                      Query event register;
+ 1    *CLS                                                                                     -                      -
+                                      Operation event register;
+
+                                      Status byte register;
+
+                                      Error queue.
+
+                                      Instrument identification query, return 2 parts of
+
+                                      data:
+
+                                      a.      Product serial number；
+
+                                      b.      Software version；
+
+                                      c.      Sub-module type                                          Product serial number, Software
+
+                                      d.      Name                                                     version, Sub-module type,
+ 2    *IDN?                                                                                    -
+                                      (Note: for firmware version 26-27: Product serial                Name
+
+                                      number, Sub-module type , Software version,
+
+                                      Name;
+
+                                      for firmware version 28 and above: Product
+
+                                      serial number, Software version, Sub-module
+
+                                      type, Name; )
+
+
+                                                                                    2
+No                Commands                        Description                    Parameter           Returned value
+
+ 3   *RST                        Program reset                                       -                       -
+
+
+
+
+1.2Measurement commands for calibrator mode
+No                Commands                        Description                    Parameter           Returned value
+
+     CALibrator:MEASure:VALUE?   Read measured value of the channel       None               voltage(EM_V)
+1.
+                                 Note: must go to Calibrator                                 current (EM_mA)
+
+                                                                                             mV (EM_mV)
+
+                                                                                             Hz (EM_Hz)
+
+                                                                                             External pressure
+
+                                                                                             module(PM_ExtA|PM_ExtB|PM_
+
+                                                                                             Diff)
+
+                                                                                             Measure item,measured
+
+                                                                                             value,unit ID
+
+                                                                                             pulse(EM_Pulse)
+
+                                                                                             Measure item, measured value,
+
+                                                                                             Switch(EM_Switch)
+
+                                                                                             Measure item, status
+
+                                                                                             HART (EM_HART)
+
+                                                                                             Measure item，HART
+
+                                                                                             TC (TM_TC)
+
+                                                                                             For mV sensors:
+
+                                                                                             measure item, mV value, mV unit
+
+                                                                                             ID
+
+                                                                                             otherwise:
+
+
+
+
+                                                                      3
+                                                                                                                                     Test item, measured
+
+                                                                                                                                     temperature value, temperature
+
+                                                                                                                                     unit, mV value, mV unit ID, CJC
+
+                                                                                                                                     value, CJC unit
+
+                                                                                                                                     RTD(TM_RTD)
+
+                                                                                                                                     For Ω sensors:
+
+                                                                                                                                     measure item, resistance value,
+
+                                                                                                                                     resistance unit ID
+
+                                                                                                                                     Otherwise:
+
+                                                                                                                                     measure item, temperature
+
+                                                                                                                                     value, temperature unit ID,
+
+                                                                                                                                     resistance value, resistance unit
+
+                                                                                                                                     ID
+
+                                                                                                                                     ACM (ACDC_Volt)
+
+                                                                                                                                     Measure item,pv value,pv unit
+
+                                                                                                                                     ID,sv value,sv unit ID,
+
+                                                                                                                                     measurement type
+
+     CALibrator:MEASure:FUNCtion?             Read current measure channel item                None                                  Measure item
+2.
+
+     CALibrator:MEASure:FUNCtion <UnquoStr>   Set current measure channel item                 Parameter:                            None
+3.
+                                                                                               Measure item
+
+                                                                                               Note: the measure item value is the
+
+                                                                                               returned measure item in the first
+
+                                                                                               command, such as EM_V
+
+
+
+     CALibrator:MEASure:RANGe?                Read the range of the current measure item       None                                  Range information
+4.
+                                                                                                                                     Please note:
+
+
+                                                                                           4
+                                                                                                                                        For HART, return HART
+
+                                                                                                                                        For switch, return (0~1)
+
+
+
+     CALibrator:MEASure:TCConfig?               Read TC configuration                           None                                    Auto CJC:
+5.
+                                                Note: available when selecting TC measure in                                            Sensor type, temperature unit ID,
+
+                                                calibrator mode                                                                         resolution, CJC type
+
+                                                                                                                                        Fixed CJC:
+
+                                                                                                                                        Sensor type, temperature unit ID,
+
+                                                                                                                                        resolution, CJC type, fixed value
+
+                                                                                                                                        External CJC:
+
+                                                                                                                                        Sensor type, temperature unit ID,
+
+                                                                                                                                        resolution, CJC type, sensor
+
+                                                                                                                                        name, wires
+
+     CALibrator:MEASure:TCConfig                Set TC configuration                            Parameter:                              None
+6.
+     <UnquoStr>,<Numeric>,<Numeric>[,<Nume      Note: available when selecting TC measure in    0 sensor name,such as:K
+
+     ric>[,<Numeric>]][,<UnquoStr>,<Numeric>]   calibrator mode                                 1 unit ID
+
+                                                                                                2 resolution
+
+                                                                                                Optional parameter:
+
+                                                                                                3 CJC type(0 auto 1 fixed 2 external)
+
+                                                                                                4 fixed CJC value
+
+                                                                                                5. sensor name (external sensor)
+
+                                                                                                6. wires 2/3/4
+
+     CALibrator:MEASure:RTDConfig?              Read RTD configuration                          None                                    Sensor name
+7.
+                                                Note: available when selecting RTD measure in                                           Temperature unit ID
+
+                                                calibrator mode                                                                         Resolution    0->0 1->0.1 2->0.01
+
+                                                                                                                                        3->0.001
+
+                                                                                                                                        Wires 2,3,4
+
+
+                                                                                          5
+      CALibrator:MEASure:RTDConfig             Set RTD configuration                             Parameter:                     None
+8.
+      <UnquoStr >,<Numeric>,<Numeric>,<Nume    Note: available when selecting RTD measure in     0“sensor name”
+
+      ric>                                     calibrator mode                                   1 unit ID
+
+                                                                                                 2 resolution 0,1,2,3
+
+                                                                                                 3 wires 2,3,4
+
+      CALibrator:MEASure:PULSeconfig?          Read pulse configuration                          None                           rising edge or not?
+9.
+                                               Note: available when selecting pulse measure in                                  0|1 falling edge|rising edge
+
+                                               calibrator mode
+
+      CALibrator:MEASure:PULSeconfig 0|1       Set pulse configuration                           Parameter:                     None
+10.
+                                               Note: available when selecting pulse measure in   0 falling edge 1 rising edge
+
+                                               calibrator mode
+
+      CALibrator:MEASure:PRESsure:UNIT?        Read external module unit                         None                           Pressure unit ID
+11.
+                                               Note: available when selecting external module
+
+                                               measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:UNIT         Set external module unit                          Parameter:                     None
+12.
+      <Numeric>                                Note: available when selecting external module    Pressure unit ID
+
+                                               measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:RESolution   Read external module resolution                   None                           resolution
+13.
+      ?                                        Note: available when selecting external module
+
+                                               measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:RESolution   Set external module resolution                    Parameter:                     None
+14.
+      <Numeric>                                Note: available when selecting external module    resolution 4,5,6
+
+                                               measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:PTYPe?       Read external module pressure type                None                           Pressure type
+15.
+                                               Note: available when selecting external module
+
+                                               measure in calibrator mode
+
+
+
+
+                                                                                          6
+      CALibrator:MEASure:PRESsure:PTYPe       Set external module pressure type                 Parameter:            None
+16.
+      G|A|D                                   Note: available when selecting external module    Pressure type G|A|D
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:ZERO        Pressure module zeroing                           None                  None
+17.
+                                              Note: available when selecting external module
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:STABle?     Read the external pressure module stability       None                  0|1
+18.
+                                              Note: available when selecting external module
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:STABle:EN   Read the status of external module stable check   None                  0|1
+19.
+      ABle?                                   Note: available when selecting external module
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:STABle:EN   Set the status of external module stable check    0 disable 1 enable    Success or not 0|1
+20.
+      ABle 0|1                                Note: available when selecting external module
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:STABle:CO   Read the current external module stable check     None                  Stable time, stability
+21.
+      NFigure?                                configuration
+
+                                              Note: available when selecting external module
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:STABle:CO   Set the current external module stable check      Parameter             Success or not 0|1
+22.
+      NFigure <Numeric>,<Numeric>             configuration                                     0 Stable time,
+
+                                              Note: available when selecting external module    1 stability
+
+                                              measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:TARE:ENA    Read the external module tare enable or not?      None                  0disable
+23.
+      Ble?                                    Note: available when selecting external module                          1 enable
+
+                                              measure in calibrator mode
+
+
+
+
+                                                                                            7
+      CALibrator:MEASure:PRESsure:TARE:ENA   Set the external module tare enable                Parameter                                  0|1
+24.
+      Ble 0|1                                Note: available when selecting external module     0 disable 1 enable
+
+                                             measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:TARE:CON   Read the tare value                                                                           Tare value
+25.
+      Figure?                                Note: available when selecting external module
+
+                                             measure in calibrator mode
+
+      CALibrator:MEASure:PRESsure:TARE:CON   Set the tare value                                 Parameter:                                 None
+26.
+      Figure <Numeric>[,<Numeric>]           Note: available when selecting external module     0 tare value
+
+                                             measure in calibrator mode                         Optional parameter:
+
+                                                                                                1 pressure unit ID
+
+      CALibrator:MEASure:ZERO                Current gear zero                                  None                                       None
+27.
+
+      CALibrator:MEASure:CZERo               Cancel current gear zero                           None                                       None
+28.
+
+      CALibrator:MEASure:FILTer:ENABle?      Read the filter status of current gear             None                                       0 disable
+29.
+                                                                                                                                           1 enable
+
+      CALibrator:MEASure:FILTer:ENABle 0|1   Enable filter of current gear                      Parameter                                  None
+30.
+                                                                                                0 disable 1 enable
+
+      CALibrator:MEASure:FILTer?             Read the current measure filter configuration      None                                       0:filter type ， 0|1 first-order or
+31.
+                                                                                                                                           average
+
+                                                                                                                                           1:filter   coefficient   or   sample
+
+                                                                                                                                           quantity
+
+                                                                                                                                           2:de-extreme value pairs
+
+      CALibrator:MEASure:FILTer              Set the current measure filter configuration       Parameter                                  None
+32.
+      0|1,<Numeric>[,<Numeric>]                                                                 0:filter type，0|1 first-order or average
+
+                                                                                                1:filter coefficient or sample quantity
+
+                                                                                                2:de-extreme value pairs
+
+
+
+                                                                                            8
+      CALibrator:MEASure:SCALe:ENABle?          Read the scaling enable or not on the current       None                             0 disable
+33.
+                                                gear                                                                                 1 enable
+
+      CALibrator:MEASure:SCALe:ENABle 0|1       Set the scaling enable or not on the current gear   Parameter                        None
+34.
+                                                                                                    0 disable 1 enable
+
+      CALibrator:MEASure:SCALe?                 Read the scaling configuration on the current       None                             0: transfer function，0|1|2
+35.
+                                                gear                                                                                 linear|square|square root
+
+                                                                                                                                     1: input lower limit
+
+                                                                                                                                     2: input upper limit
+
+                                                                                                                                     3: output lower limit
+
+                                                                                                                                     4: output upper limit
+
+                                                                                                                                     5: output unit ID
+
+                                                                                                                                     6: output range decimal digits
+
+      CALibrator:MEASure:SCALe                  Set the scaling configuration on the current gear   Parameter                        None
+36.
+      0|1|2,<Numeric>,<Numeric>,<Numeric>,<Nu                                                       0: transfer function，0|1|2
+
+      meric>,< Numeric >,<Numeric>                                                                  linear|square|square root
+
+                                                                                                    1: input lower limit
+
+                                                                                                    2: input upper limit
+
+                                                                                                    3: output lower limit
+
+                                                                                                    4: output upper limit
+
+                                                                                                    5: output unit ID
+
+                                                                                                    6: output range decimal digits
+
+      CALibrator:MEASure:MINMax:ENABle?         Read the statistic enable or not on current gear    None                             0 disable
+37.
+                                                                                                                                     1 enable
+
+      CALibrator:MEASure:MINMax:ENABle 0|1      Set the statistic enable or not on current gear     Parameter                        None
+38.
+                                                                                                    0 disable 1 enable
+
+      CAlibrator:ACM:Range 0|1|2|3              Set ACMm module current range                       0- auto 1-(0~3V)                 None
+39.
+
+
+
+                                                                                             9
+                                                                                            2-(3~30V) 3-(30~300)V
+
+      CAlibrator:ACM:Config?                  Return ACM current configuration              None                      Current channel
+40.
+                                                                                                                      type,AC/DC,AC/DC/HZ
+
+      CAlibrator:ACM:Config <Boolean>,0|1|2   Set ACM configuration                         1:0-AC,1-DC
+41.
+                                                                                            2:0-AC,1-DC,2-Hz
+
+1.3Calibrator output commands
+No                     Commands                                  Description                              Parameter           Returned value
+
+                                                                                                                      voltage(ES_V)
+
+                                                                                                                      current (ES_mA)
+
+                                                                                                                      mV (ES_mV)
+
+                                                                                                                      Hz (ES_Hz)
+
+                                                                                                                      Output item, output value, unit ID
+
+                                                                                                                      pulse(ES_Pulse)
+
+                                                                                                                      output item，output value
+
+                                                                                                                      TC (TS_TC)
+
+                                                                                                                      For mV sensors:
+
+      CALibrator:OUTPut:VALUE?                    Read output value of the output channel   None                      Output item, mV value, mV unit
+1.
+                                                                                                                      ID
+
+                                                                                                                      Otherwise:
+
+                                                                                                                      Output item, CJC value, CJC unit
+
+                                                                                                                      ID, mV value, mV unit ID, origin
+
+                                                                                                                      value, origin value unit ID
+
+                                                                                                                      RTD (TS_RTD)
+
+                                                                                                                      For Ω sensors:
+
+                                                                                                                      Output item, resistance value,
+
+                                                                                                                      resistance unit ID
+
+
+
+                                                                                       10
+                                                                                Otherwise
+
+                                                                                Output item, temperature value,
+
+                                                                                temperature unit ID, resistance
+
+                                                                                value, resistance unit ID
+
+                                                                                External pressure
+
+                                                                                module(PM_ExtA|PM_ExtB|PM_
+
+                                                                                Diff)
+
+                                                                                Measure item, measure value,
+
+                                                                                unit ID
+
+                                                                                voltage(ES_V)
+
+                                                                                current (ES_mA)
+
+                                                                                mV (ES_mV)
+
+                                                                                mV (ES_Hz)
+
+                                                                                Output item, target value, unit ID
+
+                                                                                Pulse(ES_Pulse)
+
+                                                                                output item，output value
+
+                                                                                TC (TS_TC)
+
+                                                                                For mV sensors:
+     CALibrator:OUTPut:Target?   Read output target value        target value
+2.                                                                              Output item, mV value, mV unit
+
+                                                                                ID
+
+                                                                                Otherwise:
+
+                                                                                Output item, CJC value, CJC unit
+
+                                                                                ID, mV value, mV unit ID, origin
+
+                                                                                value, origin value unit ID
+
+                                                                                RTD (TS_RTD)
+
+                                                                                For Ω sensors:
+
+                                                                                Output item, resistance value,
+
+
+                                                            11
+                                                                                                                                         resistance unit ID
+
+                                                                                                                                         Otherwise
+
+                                                                                                                                         Output item, temperature value,
+
+                                                                                                                                         temperature unit ID, resistance
+
+                                                                                                                                         value, resistance unit ID
+
+                                                                                                                                         External pressure module
+
+                                                                                                                                         (PM_ExtA| PM_ExtB|PM_Diff)
+
+                                                                                                                                         Measure item, measure value,
+
+                                                                                                                                         unit ID
+
+
+
+
+                                                                                                                                         Note: external module is not
+     CALibrator:OUTPut:VALUE <Numeric>       Ser output target value                       target value
+3.                                                                                                                                       supported
+
+                                                                                                                                         Output item
+     CALibrator:OUTPut:FUNCtion?             Read current output channel item              None
+4.
+
+                                                                                           Parameter:
+
+                                                                                           Output item
+
+                                                                                           Note: the output item value is the returned
+     CALibrator:OUTPut:FUNCtion <UnquoStr>   Set current output channel item                                                             None
+5.                                                                                         output item in the first command, such as
+
+                                                                                           ES_V
+
+
+
+     CALibrator:OUTPut:RANGe?                Read the current output range information     None                                          Range
+6.
+
+                                                                                                                                         Auto CJC:
+                                             Read TC configuration
+                                                                                                                                         Sensor type, temperature unit ID,
+     CALibrator:OUTPut:TCConfig?             Note: available when selecting TC output in   None
+7.                                                                                                                                       resolution, CJC type
+                                             calibrator mode
+                                                                                                                                         Fixed CJC:
+
+
+
+
+                                                                                   12
+                                                                                                                                          Sensor type, temperature unit ID,
+
+                                                                                                                                          resolution, CJC type, fixed value
+
+                                                                                                  Parameter:
+
+                                                                                                  0 sensor name, such as:K
+
+                                                                                                  1 unit ID
+
+      CALibrator:OUTPut:TCCOnfig                    Set TC configuration                          2 resolution
+
+      <UnquoStr>,<Numeric>,<Numeric>[,<Numeric>[,   Note: available when selecting TC output in   Optional parameter:                     None
+8.
+      <Numeric>]][,<UnquoStr>,<Numeric>]            calibrator mode                               3 CJC type(0 auto 1 fixed 2 external)
+
+                                                                                                  4 fixed CJC value
+
+                                                                                                  5. external sensor
+
+                                                                                                  6. wires 2/3/4
+
+                                                                                                                                          Sensor name
+
+                                                    Read RTD configuration                                                                Temperature unit ID
+
+      CALibrator:OUTPut:RTDConfig?                  Note: available when selecting RTD output     None                                    Resolution 0->0 1->0.1 2->0.01
+9.
+                                                    in calibrator mode                                                                    3->0.001
+
+                                                                                                                                          wires 2,3,4
+
+                                                                                                  Parameter:
+
+                                                    Set RTD configuration                         0“sensor name”
+      CALibrator:OUTPut:RTDConfig
+                                                    Note: available when selecting RTD output     1 unit ID                               None
+10.   <UnquoStr>,<Numeric>,<Numeric>,<Numeric>
+                                                    in calibrator mode                            2 resolution 0,1,2,3
+
+                                                                                                  3 wires 2,3,4
+
+                                                    Read amplitude and frequency in pulse                                                 0: amplitude
+
+                                                    gear                                                                                  1: amplitude unit ID
+      CALibrator:OUTPut:PULSeconfig?                                                              None
+11.                                                 Note: available when selecting pulse output                                           2:frequency
+
+                                                    in calibrator mode                                                                    3: frequency unit ID
+
+      CALibrator:OUTPut:PULSeconfig                 Set amplitude and frequency in pulse gear     Parameter:
+                                                                                                                                          None
+12.   <Numeric>,<Numeric>                           Note: available when selecting pulse output   0 amplitude
+
+
+                                                                                          13
+                                                  in calibrator mode                            1 frequency
+
+                                                  Read external module unit
+
+      CALibrator:OUTPut:PRESsure:UNIT?            Note: available when selecting external       None                  Pressure unit ID
+13.
+                                                  module output in calibrator mode
+
+                                                  Set external module unit
+                                                                                                Parameter:
+      CALibrator:OUTPut:PRESsure:UNIT <Numeric>   Note: available when selecting external                             None
+14.                                                                                             Pressure unit ID
+                                                  module output in calibrator mode
+
+                                                  Read external module resolution
+
+      CALibrator:OUTPut:PRESsure:RESolution?      Note: available when selecting external       None                  Resolution
+15.
+                                                  module output in calibrator mode
+
+                                                  Set external module resolution
+      CALibrator:OUTPut:PRESsure:RESolution                                                     Parameter:
+                                                  Note: available when selecting external                             None
+16.   <Numeric>                                                                                 resolution 4,5,6
+                                                  module output in calibrator mode
+
+                                                  Read external module pressure type
+
+      CALibrator:OUTPut:PRESsure:PTYPe?           Note: available when selecting external       None                  Pressure type
+17.
+                                                  module output in calibrator mode
+
+                                                  Set external module pressure type
+                                                                                                Parameter:
+      CALibrator:OUTPut:PRESsure:PTYPe G|A|D      Note: available when selecting external                             None
+18.                                                                                             Pressure type G|A|D
+                                                  module output in calibrator mode
+
+                                                  Pressure module zero
+
+      CALibrator:OUTPut:PRESsure:ZERO             Note: available when selecting external       None                  None
+19.
+                                                  module output in calibrator mode
+
+                                                  Read the current stability of the external
+
+                                                  module
+      CALibrator:OUTPut:PRESsure:STABle?                                                        None                  0|1
+20.                                               Note: available when selecting external
+
+                                                  module output in calibrator mode
+
+
+
+
+                                                                                           14
+                                                  Read the status of external module stable
+
+                                                  check
+      CALibrator:OUTPut:PRESsure:STABle:ENABle?                                               None                0|1
+21.                                               Note: available when selecting external
+
+                                                  module output in calibrator mode
+
+                                                  Set the status of external module stable
+
+      CALibrator:OUTPut:PRESsure:STABle:ENABle    check                                       Parameter
+                                                                                                                  Success or not 0|1
+22.   0|1                                         Note: available when selecting external     0 disable1 enable
+
+                                                  module output in calibrator mode
+
+                                                  Read the external module stable check
+
+      CALibrator:OUTPut:PRESsure:STABle:CONFigu   configuration
+                                                                                              None                Stable time, stability
+23.   re?                                         Note: available when selecting external
+
+                                                  module output in calibrator mode
+
+                                                  Set the external module stable check        Parameter
+
+      CALibrator:OUTPut:PRESsure:STABle:CONFigu   configuration                               0 stable time
+                                                                                                                  Success or not 0|1
+24.   re <Numeric>,<Numeric>                      Note: available when selecting external     1 stability
+
+                                                  module output in calibrator mode
+
+                                                  Read the module tare enable or not?
+                                                                                                                  0 disable
+      CALibrator:OUTPut:PRESsure:TARE:ENABle?     Note: available when selecting external     None
+25.                                                                                                               1 enable
+                                                  module output in calibrator mode
+
+                                                  Set the module tare enable or not?          Parameter
+      CALibrator:OUTPut:PRESsure:TARE:ENABle
+                                                  Note: available when selecting external     0 disable           0|1
+26.   0|1
+                                                  module output in calibrator mode            1 enable
+
+                                                  Read tare value
+      CALibrator:OUTPut:PRESsure:TARE:CONFigur                                                                    0: tare value
+                                                  Note: available when selecting external
+27.   e?                                                                                                          1: unit ID
+                                                  module output in calibrator mode
+
+      CALibrator:OUTPut:PRESsure:TARE:CONFigur    Set tare value                              Parameter:          None
+28.
+
+
+
+                                                                                         15
+     e <Numeric>[,<Numeric>]        Note: available when selecting external    0 tare value
+
+                                    module output in calibrator mode           Optional parameter:
+
+                                                                               1 pressure unit ID
+
+1.4 Non- calibrator commands
+No                   Commands                      Description                                 Parameter            Returned value
+
+                                                                                                           0: measure type
+
+                                                                                                           EM-mA
+
+                                                                                                           EM-mV
+
+                                                                                                           EM-V
+
+                                                                                                           EM-Pulse
+
+                                                                                                           EM-Hz
+
+                                                                                                           EM-HART
+
+                                                                                                           1: measured value 2: unit
+
+                                                                                                           EM-Switch
+
+                                                                                                           1:Open/Closed
+     MEASure:VALUE?
+                                    Read the measured value of the modules     None                        TMS-RTD
+1.   EM|TMS|ACM|EXTA|EXTB|EXTDIFF
+                                                                                                           1: measured value 2: unit
+
+                                                                                                           3: origin value 4: unit
+
+                                                                                                           TMS-TC
+
+                                                                                                           1: measured value 2: unit
+
+                                                                                                           3: origin value 4: unit
+
+                                                                                                           5: CJC 6: unit
+
+                                                                                                           ACM-AC
+
+                                                                                                           1: voltage value 2: unit:3.
+
+                                                                                                           Frequency 4: unit
+
+                                                                                                           ACM-DC
+
+
+
+                                                                          16
+                                                                                                                                1: voltage value 2: unit
+
+                                                                                                                                ACM-HZ
+
+                                                                                                                                1: frequency 2: unit 3: voltage 4:
+
+                                                                                                                                unit
+
+                                                                                                                                EXTA
+
+                                                                                                                                EXTB
+
+                                                                                                                                EXTDIFF
+
+                                                                                                                                1: measured value 2: unit
+
+                                                                                                                                0:Output，
+
+     OUTPut:VALUE? ES|TMS                 Read the output value of the modules            None                                  1:Set value
+2.
+                                                                                                                                2:Unit ID
+
+                                          Read the output channel item of the                                                   Output item
+     OUTPut:FUNCtion? ES|TMS                                                              None
+3.                                        modules
+
+                                          Read measured value of the specific                                                   Measurement type，Measured
+                                                                                          Parameter:FunctionType,separated by
+     MEASure:CHANnel:VALUE? <QuoteStr>    channel. If it is not the current channel of                                            value correlation，separated by
+4.                                                                                        commas
+                                          the module, no value will be returned                                                   semicolon
+
+                                          Read the range of the specific channel. If it                                         FunctionType,lower limit，upper
+                                                                                          Parameter:FunctionType,separated by
+     MEASure:CHANnel:Ranges? <QuoteStr>   is not the current channel of the module, no                                            limit, unit ID，separated by
+5.                                                                                        commas
+                                          value will be returned                                                                  semicolon
+
+
+
+
+1.5 System Commands
+No                  Commands                              Description                                   Parameter                       Returned value
+
+     SYSTem:ERRor[:NEXT]?                 Read command execution error information        None                                  Error message on stack top
+1.
+
+                                                                                                                                0 Non-lock screen
+2.   SYSTem:LOCK?                         Query lock screen state                         None
+                                                                                                                                1 Lock screen
+
+
+                                                                                    17
+                                                                                  0|OFF Non-lock screen
+3.   SYSTem:LOCK <Boolean>|ON|OFF                    Set lock screen state                                                 None
+                                                                                  1|ON Lock screen
+
+                                                                                  Optional parameter:
+4.
+                                                                                  "APPLication"Main program version，
+
+                                                                                  "BT:FIRMware"Bluetooth version，"
+
+                                                                                  "EM:FIRMware" Control board firmware
+
+                                                                                  version
+
+                                                                                  ，"EM:HARDware" Control board hardware
+
+                                                                                  version
+
+                                                                                  ，
+
+     SYSTem:VERSion?                                                              "ES:FIRMware" :Control board firmware
+                                                                                                                           Without parametersreturn to
+     [\"APPLication\"|\"BT:FIRMware\"|\"EM:FIRMwar                                version
+                                                                                                                           the main program version by
+     e\"|\"EM:HARDware\"|\"ES:FIRMware\"|\"ES:HA                                  "ES:HARDware" :Control board hardware
+                                                     Read device version                                                   default. With parameters,returns
+     RDware\"                                                                     version
+                                                                                                                           the version of the corresponding
+     |\"TMS:FIRMware\"|\"TMS:HARDware\"                                           "TMS:FIRMware": Control board firmware
+                                                                                                                           parameters
+     |\"ACM:FIRMware\"|\"ACM:HARDware\"]                                          version
+
+                                                                                  "TMS:HARDware" :Control board hardware
+
+                                                                                  version
+
+                                                                                  ，
+
+                                                                                  "ACM:FIRMware" Control board firmware
+
+                                                                                  version
+
+                                                                                  ，"ACM:HARDware" Control board
+
+                                                                                  hardware version
+
+                                                                                  ，
+
+     SYSTem:DATE?                                                                 None                                     Date（yyyy,MM,dd）
+                                                     Read system date
+5.
+
+
+
+
+                                                                             18
+      SYSTem:DATE                              Set system date                            Year、Month、Date                             None
+6.
+      <Numeric>,<Numeric>,<Numeric>
+
+      SYSTem:TIME?                             Read system time                           None                                        Time（HH,mm,ss）
+7.
+
+      SYSTem:TIME                              Set system time                            Hour、Minute、Second                          None
+8.
+      <Numeric>,<Numeric>,<Numeric>
+
+      SYSTem:TIME:FORMat?                      Read system time format                    None                                        Two parameters separated by
+9.                                                                                                                                    comma .
+                                                                                                                                      Is it a 24-hour clock?
+                                                                                                                                      Current time zone
+      SYSTem:TIME:FORMat <Boolean>,<Numeric>   Read system time format                    Two parameters separated by comma , Is it   None
+10.
+                                                                                          a 24-hour clock
+
+                                                                                          Timezone UTC value
+
+      SYSTem:TBEEp?                            Query key tone state                       None                                        0 OFF
+11.
+                                                                                                                                      1 ON
+
+      SYSTem:TBEEp <Boolean>|ON|OFF                                                       0|OFF                                       None
+12.                                            Set key tone state
+                                                                                          1|ON
+
+      SYSTem:PBEEp?                            Query the state of the prompt tone         None                                        0 OFF
+13.
+                                                                                                                                      1 ON
+
+      SYSTem:PBEEp <Boolean>|ON|OFF            Set the state of the prompt tone           0|OFF                                       None
+14.
+                                                                                          1|ON
+
+      SYSTem:ORBEep?                           Query alarm tone state of out range        None                                        0 OFF
+15.
+                                                                                                                                      1 ON
+
+      SYSTem:ORBEep <Boolean>|ON|OFF           Set alarm tone state of out range          0|OFF                                       None
+16.
+                                                                                          1|ON
+
+      SYSTem:STBEep?                           Query stable prompt tone state             None                                        0 OFF
+17.
+                                                                                                                                      1 ON
+
+
+
+
+                                                                                     19
+      SYSTem:STBEep <Boolean>|ON|OFF            Set stable prompt tone state                    0|OFF                                        None
+18.
+                                                                                                1|ON
+
+      SYSTem:VOLume?                            Read volume percentage                          None                                         Volume percentage
+19.
+
+      SYSTem:VOLume <Numeric>                   Set system volume                               Volume percentage                            None
+20.
+
+      SYSTem:LANGuage?                          Read current language type                      None                                         Current
+21.
+
+      SYSTem:LANGuage <UnquoStr>[,<Boolean>]    Set current lanauage                            Parameter:language name zh-CN,               None
+22.
+                                                                                                Optional parameter: whether to restart the
+
+                                                                                                device, the default restart
+
+      SYSTem:LANGuage:CONFig?                   Read the list of currently supported            None                                         Language list
+23.
+                                                languages
+
+      SYSTem:LANGuage:CONFig <QuoteStr>         Set the list of currently supported languages   Language list（separated by commas）           None
+24.
+
+      SYSTem:BLUEtooth:STATe?                   Read Bluetooth state                            None                                         0 OFF
+25.
+                                                                                                                                             1 ON
+
+      SYSTem:BLUEtooth:STATe <Boolean>|ON|OFF   Set Bluetooth state                             0|OFF                                        None
+26.
+                                                                                                1|ON
+
+      SYSTem:BLUEtooth:NAMe                     Read Bluetooth name                             None                                         Bluetooth name
+27.
+
+      SYSTem:BLUEtooth:NAMe <UnquoStr>          Set Bluetooth name                              Name（Without quotes）                         None
+28.
+
+      SYSTem:BRIGhtness? Percentage|Value       Read screen brightness                          Percentage or value                          Screen brightness
+29.
+
+      SYSTem:BRIGhtness                         Set screen brightness                           Parameter 1: Percentage or value             None
+30.
+      Percentage|Value,<Numeric>                Brightness value range:                         Parameter 2: Brightness value
+
+                                                Value:200-4096
+
+                                                Percentage :0-100
+
+
+
+                                                                                        20
+                                     When the brightness value is greater than
+
+                                     4096 or 100, it is automatically set to the
+
+                                     maximum brightness.
+
+                                     When the brightness value is less than 0 or
+
+                                     200, it is automatically set to the minimum
+
+                                     brightness.
+
+      SYSTem:BATTery:ONLIne?         Read if the battery is online                 None             1 :Battery online
+31.
+                                                                                                    0 : Battery offline
+
+      SYSTem:BATTery:STATus?         Read current battery state                    None             0:   Battery    communication    is
+32.
+                                                                                                    abnormal
+
+                                                                                                    1:   Battery    communication    is
+
+                                                                                                    normal
+
+      SYSTem:BATTery:CAPacity?       Read current battery level                    None             Current     battery   level ， total
+33.
+                                                                                                    battery power
+
+                                                                                                    （Unit :mAh）
+
+      SYSTem:BATTery:Backlight?      Check whether the backlight is on             None             0: auto backlight offclose
+34.
+                                     （backlight time is not equal to never）                         1: auto backlight off open
+
+      SYSTem:BATTery:Backlight 0|1   Open/off backlight，default 30s                0 close，1 open   None
+35.
+
+      SYSTem:BATTery:BLOFf?          Query auto backlight off time                 None             Return auto backlight off option，
+36.
+                                                                                                    Represented time:
+
+                                                                                                    0-never,
+
+                                                                                                    1-30s,
+
+                                                                                                    2-1mins,
+
+                                                                                                    3-5mins,
+
+                                                                                                    4-15mins,
+
+                                                                                                    5-30mins.
+
+
+
+                                                                              21
+      SYSTem:BATTery:BLOFf 0|1|2|3|4|5   Set auto backlight off time                    Auto backlight off option 0|1|2|3|4|5   None
+37.
+                                                                                        Represented time:
+
+                                                                                        0-never,
+
+                                                                                        1-30s,
+
+                                                                                        2-1mins,
+
+                                                                                        3-5mins,
+
+                                                                                        4-15mins,
+
+                                                                                        5-30mins.
+
+      SYSTem:BATTery:ASLeep?             Query the auto-sleep time after turning off    None                                    Return auto-sleep option serial
+38.
+                                         the backlight                                                                          number::
+
+                                                                                                                                Serial number represented time:
+
+                                                                                                                                0-never,
+
+                                                                                                                                1-1mins,
+
+                                                                                                                                2-5mins,
+
+                                                                                                                                3-15mins,
+
+                                                                                                                                4-30mins
+
+      SYSTem:BATTery:ASLeep 0|1|2|3|4    Set the automatic sleep time after turning     Auto-sleep option: 0|1|2|3|4            None
+39.
+                                         off the backlight                              represented time:
+
+                                                                                        0-never,
+
+                                                                                        1-1mins,
+
+                                                                                        2-5mins,
+
+                                                                                        3-15mins,
+
+                                                                                        4-30mins
+
+      SYSTem:BATTery:POTime?             Query the automatic sleep time after turning   None                                    Return auto power- off option
+40.
+                                         off the backlight                                                                      serial number:
+
+                                                                                                                                Serial number represented time:
+
+                                                                                                                                0-never,
+
+
+                                                                                 22
+                                                                                                                                        1-5mins,
+
+                                                                                                                                        2-15mins,
+
+                                                                                                                                        3-30mins,
+
+                                                                                                                                        4-1h,
+
+                                                                                                                                        5-2h
+
+      SYSTem:BATTery:POTime 0|1|2|3|4|5            Set the automatic shutdown time after        Auto power- off option serial number:   None
+41.
+                                                   device sleep                                 Serial number represented time:
+
+                                                                                                0-never,
+
+                                                                                                1-5mins,
+
+                                                                                                2-15mins,
+
+                                                                                                3-30mins,
+
+                                                                                                4-1h,
+
+                                                                                                5-2h
+
+1.6 Data management commands
+No                    Commands                                    Description                                   Parameter                       Returned value
+
+                                                                                                Parameter1: LEAKtest:
+
+      DATamanager:COUNt?                                                                                      SNAPshot:
+
+      LEAKtest|SNAPshot|DATAlogger|PSVTest|AIRTi   The count of read data                                       DATAlogger              Number of data
+1.
+      ghtness                                                                                                 PSVTest:
+
+                                                                                                              AIRTightness:
+
+                                                                                                Parameter 1:LEAKtest
+
+                                                                                                        SNAPshot
+      DATamanager:INFo?
+                                                                                                        DATAlogger
+      LEAKtest|SNAPshot|DATAlogger|PSVTest|AIRTi   Read data related information                                                        Information
+2.                                                                                                      PSVTest
+      ghtness,<Numeric>,<Numeric>
+                                                                                                        AIRTightness
+
+                                                                                                Parameter 2:start，initial position
+
+
+
+                                                                                           23
+                                                                                                  Parameter 3:count ，read length
+
+                                                                                                  Parameter 1:LEAKtest
+
+                                                                                                         SNAPshot
+
+     DATamanager:DEL                                                                                     DATAlogger:
+
+     LEAKtest|SNAPshot|DAtAlogger|PSVTest|AIRTig   Delete test result                                    PSVTest                                 0|1，0 Failed，1 Successed
+3.
+     htness,<UnquoStr>                                                                                   AIRTightness:
+
+                                                                                                  Parameter 2: Perform delate operation file
+
+                                                                                                  GUID（Without quotes）
+                                                                                                  Parameter 1:LEAKtest
+     DATamanager:DEL:ALL                                                                                       SNAPshot
+     LEAKtest|SNAPshot|DATAlogger|PSVTest|AIRTi    Delete all test results                                      DATAlogger                       0|1，0 Failed，1 Successed
+4.
+     ghtness                                                                                                    PSVTest
+                                                                                                                AIRTightness
+     DATamanager:LENGth?
+                                                                                                  DATA|IMAGe data file or picture file
+     LEAKtest|SNAPshot|DATAlogger|PSVTest|AIRTi    Read data length                                                                              Return data length
+5.                                                                                                 file name
+     ghtness,DATA|IMAGe,<UnquoStr>
+
+     DATamanager:DATa?
+
+     LEAKtest|SNAPshot|DATAlogger|PSVTest|AIRTi                                                   DATA|IMAGe data file or picture file，initial
+                                                   Read the data at the specified position                                                       Return data in string format
+6.   ghtness,DATA|IMAGe,<UnquoStr>,<Numeric>,<                                                    position，read the length of data
+
+     Numeric>
+
+
+
+
+                                                                                             24
+1.7 HART Commands
+
+
+No                          Commands                Description                           Parameter                   Returned value
+
+                                                                                                            0:IPIR( Internal resistance)；
+1.   HART:SUPPLYMODE?                    Query the power supply mode       None
+                                                                                                            1:EPER(External resistance)
+
+                                                                           0 or IPIR:Internal resistance；
+2.   HART:SUPPLYMODE IPIR|EPER|0|1       Set the power supply mode                                          None
+                                                                           1 or EPER:External resistance;
+
+3.   HART:ONLDEVice:CONNected?           HART Device connected ot not      None                             1.Connected 0.Not Connected
+
+                                                                           None or<Parameter name >
+
+                                                                           Parameter name list:
+
+                                                                           Tag
+
+                                                                           Manufacturer
+
+                                                                           Devicetype
+
+                                                                           Deviceid
+                                                                                                            Return all device information whEn
+                                                                           writeprotect
+                                                                                                            there are no parameter;
+                                                                           date
+4.   HART:ONLDEVice:INFO? [<UnquoStr>]   Search Hart devices\ infomation                                    Return the corresponding device
+                                                                           message
+                                                                                                            parameter values when set
+                                                                           descriptor
+                                                                                                            parameters .
+                                                                           finalassemble
+
+                                                                           preambles
+
+                                                                           universalrev
+
+                                                                           hardwarerev
+
+                                                                           softwarerev
+
+                                                                           devicerev
+
+
+
+
+                                                         25
+Appendix 1: SCPI unit Id list
+
+Unit Id        Unit
+
+2000           Text unit
+
+32767          Blank unit
+
+
+
+
+1211           mA
+
+1212           μA
+
+1209           A
+
+1240           V
+
+1241           mV
+
+1281           Ω
+
+1284           kΩ
+
+1283           MΩ
+
+1000           K
+
+1001           ℃
+
+1002           ℉
+
+1003           °R
+
+                                26
+999    °Re
+
+1005   °
+
+1342   %
+
+
+
+
+1133   kPa
+
+1130   Pa
+
+1131   GPa
+
+1132   MPa
+
+1134   mPa
+
+1135   μPa
+
+1136   hPa
+
+1137   bar
+
+1138   mbar
+
+1139   torr
+
+1140   atm
+
+1141   psi
+
+
+
+
+              27
+1142   psia
+
+1143   psig
+
+                   2
+1144   gf/cm
+
+                       2
+1145   kgf/cm
+
+1147   inH2O@4°C
+
+1148   inH2O@68°F
+
+1150   mmH2O@4°C
+
+1151   mmH2O@20°C
+
+1153   ftH2O@4°C
+
+1154   ftH2O@68°F
+
+1156   inHg@0°C
+
+1158   mmHg@0°C
+
+2001   mtorr
+
+               2
+2002   lb/ft
+
+2003   tsi
+
+2004   psf
+
+
+
+
+                           28
+2005   inH2O@60°F
+
+2006   ftH2O@60°F
+
+2007   cmH2O@4°C
+
+2008   mH2O@4°C
+
+2009   cmHg@0°C
+
+2010   mHg@0°C
+
+               2
+2011   kgf/m
+
+
+
+
+                    29
+Appendix 2: Error Definition
+
+
+    No       Error               Description of error                                          Explanation
+             code
+    1    0           No error                           No error
+                                                             Command error
+     2   120         Commandparameter error             Command parameter error
+     3   -108        Parameter not allowed              Too many parameters，or command without parameters have parameters
+     4   -109        Missing parameter                  Lack parameter
+     5   -110        Command header error               Command header error
+     6   -114        Header suffix out of range         Command suffix out of range
+     7   -123        Numeric overflow                   Numeric overflow，the absolute value of the index of the number is greater than 43
+     8   -151        Invalid string data                Invalid string data，eg.quotation mark missmatch
+     9   -171        Invalid expression                 Invalid expression    eg.bracket mismatch
+                                                              Execution error
+    10   -200        Execution error                    Execution error
+    11   -221        Settings conflict                  Settings conflict
+    12   -222        Data out of range                  The parameter value exceeds the valid range of the command
+    13   -223        Too much data                      Too much data to handle
+    14   -224        Illegal parameter value            Illegal parameter value
+    15   -230        Data corrupt or stale              Invalid data，or data is being read, no valid data yet
+    16   -240        Hardware error                     Hardware error
+    17   -25         File name not found                File name not found
+                6
+    18   -282        Illegal program name               Illegal program name
+
+
+
+                                                                     30
+No    Error               Description of error                                             Explanation
+      code
+19   220      Measure error                        Measure error
+20   221      Failed to set meaure function        Failed to set meaure function
+21   222      Failed to read measure value         Failed to read measure value
+22   223
+23   224
+24   240      Control error                        Control error
+25   241
+26   242
+27   243
+28   260      Calibration error                    Calibration error
+29   261      Calibration secured                  The device is in calibration protection state and unable to perform calibration
+30   262      Invalid calibration secure code      Invalid calibration secure code
+31   263      Missing calibration value            This error occurs when the calibration value is set without setting the calibration point
+                                                   during current/voltage calibration
+32   264      Missing calibration data             This error occurs when calibration points are set continuously without calibration values set
+33   265      Failed to set calibration function   Failed to set calibration function
+34   266      Calibration data is not enough       When saving the calibration data, this error occurs if the calibration data does not reach 3
+                                                   points
+35   271      Setion_name_not_found                Section name not found
+36   272      Key_name_not_found                   Keyname not found
+37   291      Update secured                       The device is in update protection state and cannot be update
+38   292      Invalid update secure code           Invalid update secure code
+39   293      Not found the service pack           Not found the update pack
+40   294      The service pack unavailable         The update pack unavailable
+
+
+                                                                   31
+No    Error              Description of error                                                 Explanation
+      code
+41   295      AppUpdate not found                        AppUpdate.exe not found
+                                                              Equipment error
+42   -310     System error                               System error
+43   -311     Memory error                               Memory error
+44   -350     Queue overflow                             Error queue overflow
+45   -360     Communication error                        Communication error
+46   301      Internal module is not connected           Internal module is not connected
+47   302      External module is not connected           External module is not connected
+48   303      Supply module is not connected             Positive pressure module is not connected
+49   304      Vacuum module is not connected             Negative pressure module is not connected
+50   361      Open WLAN Failed                           Open WIFI failed
+51   362      Set WLAN address mode failed               Set WIFI address mode failed
+52   363      Set WLAN address failed                    Set WIFI address failed
+53   364      Communication port to WIFI module is not   Communication port to WIFI module is not open
+              open
+54   365      WLANisnotconnected                         WIFI is not connected
+
+
+
+
+                                                                     32
+

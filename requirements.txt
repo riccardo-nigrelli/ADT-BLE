@@ -1,0 +1,3 @@
+# BLE communication library used by the demo.
+# Cross-platform: macOS (CoreBluetooth), Windows (WinRT), Linux (BlueZ).
+bleak>=0.21
