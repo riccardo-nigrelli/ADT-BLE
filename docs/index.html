@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADT-BLE — Python BLE library for Additel calibrators</title>
+<meta name="description" content="An integrable Python library (async + sync) and CLI for talking to Additel calibrators over Bluetooth Low Energy.">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#0f172a; --muted:#5b6675; --border:#e6e9ef;
+    --sidebar:#f8fafc; --card:#f8fafc; --code-bg:#0f172a; --code-fg:#e6edf3;
+    --accent:#2563eb; --accent2:#6366f1; --cyan:#0891b2;
+    --kbd:#eef2f7; --warn-bg:#fff7ed; --warn-bd:#fed7aa; --warn-fg:#9a3412;
+    --ok:#15803d; --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0b1120; --fg:#e6edf3; --muted:#93a1b5; --border:#1e293b;
+      --sidebar:#0d1526; --card:#0f1830; --code-bg:#0a0f1e; --code-fg:#e6edf3;
+      --accent:#60a5fa; --accent2:#818cf8; --cyan:#22d3ee;
+      --kbd:#1e293b; --warn-bg:#2a1a0d; --warn-bd:#7c3f16; --warn-fg:#fdba74;
+      --ok:#4ade80; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#ffffff; --fg:#0f172a; --muted:#5b6675; --border:#e6e9ef; --sidebar:#f8fafc;
+    --card:#f8fafc; --code-bg:#0f172a; --code-fg:#e6edf3; --accent:#2563eb; --accent2:#6366f1;
+    --cyan:#0891b2; --kbd:#eef2f7; --warn-bg:#fff7ed; --warn-bd:#fed7aa; --warn-fg:#9a3412; --ok:#15803d;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1120; --fg:#e6edf3; --muted:#93a1b5; --border:#1e293b; --sidebar:#0d1526;
+    --card:#0f1830; --code-bg:#0a0f1e; --code-fg:#e6edf3; --accent:#60a5fa; --accent2:#818cf8;
+    --cyan:#22d3ee; --kbd:#1e293b; --warn-bg:#2a1a0d; --warn-bd:#7c3f16; --warn-fg:#fdba74; --ok:#4ade80;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
+  :not(pre)>code{background:var(--kbd); padding:.12em .4em; border-radius:5px; color:var(--fg)}
+  pre{
+    background:var(--code-bg); color:var(--code-fg); padding:18px 20px; border-radius:12px;
+    overflow-x:auto; font-size:13.5px; line-height:1.6; border:1px solid rgba(255,255,255,.06);
+  }
+  pre code{color:inherit;background:none;padding:0}
+  .tok-c{color:#8b98ad}.tok-k{color:#c792ea}.tok-s{color:#c3e88d}.tok-f{color:#82aaff}.tok-n{color:#f78c6c}
+
+  /* layout */
+  .wrap{display:grid; grid-template-columns:264px 1fr; max-width:1200px; margin:0 auto}
+  aside{
+    position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+    border-right:1px solid var(--border); background:var(--sidebar); padding:22px 16px 40px;
+  }
+  main{padding:0 clamp(20px,4vw,56px) 96px; min-width:0}
+  .brand{display:flex; align-items:center; gap:10px; padding:4px 8px 18px; }
+  .brand svg{display:block}
+  nav a{
+    display:block; color:var(--muted); padding:6px 10px; border-radius:8px; font-size:14px;
+    border-left:2px solid transparent;
+  }
+  nav a:hover{color:var(--fg); background:rgba(127,127,127,.08); text-decoration:none}
+  nav a.active{color:var(--fg); border-left-color:var(--accent); background:rgba(37,99,235,.08); font-weight:600}
+  nav .grp{margin:16px 10px 6px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); opacity:.75}
+
+  /* hero */
+  header.hero{padding:56px 0 30px; border-bottom:1px solid var(--border)}
+  .tile{
+    width:76px;height:76px;border-radius:20px;
+    background:linear-gradient(135deg,#22d3ee,#3b82f6 55%,#6366f1);
+    display:grid;place-items:center;box-shadow:var(--shadow)
+  }
+  h1{font-size:clamp(30px,5vw,44px); margin:20px 0 6px; letter-spacing:-.02em; line-height:1.1}
+  .lede{font-size:19px; color:var(--muted); margin:0 0 20px; max-width:60ch}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+  .badge{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+  .cta{display:flex;flex-wrap:wrap;gap:10px}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:none
+  }
+  .btn:hover{text-decoration:none;filter:brightness(1.06)}
+  .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--border)}
+
+  h2{font-size:26px; margin:52px 0 8px; letter-spacing:-.01em; scroll-margin-top:20px}
+  h2::before{content:"";display:block;height:0}
+  h3{font-size:18px;margin:30px 0 6px;scroll-margin-top:20px}
+  p{margin:10px 0}
+  .sub{color:var(--muted)}
+  section>p:first-of-type{margin-top:6px}
+
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px;display:block;overflow-x:auto}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  td code{white-space:nowrap}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .note{border-left:3px solid var(--accent);background:var(--card);padding:12px 16px;border-radius:0 10px 10px 0;margin:16px 0}
+  .warn{border-left:3px solid var(--warn-bd);background:var(--warn-bg);color:var(--warn-fg);padding:12px 16px;border-radius:0 10px 10px 0;margin:16px 0}
+  .warn code{background:rgba(0,0,0,.12)}
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
+  .feat .card{margin:0}
+  .feat b{display:block;margin-bottom:2px}
+
+  .steps{counter-reset:s;list-style:none;padding:0;margin:16px 0}
+  .steps li{position:relative;padding:6px 0 6px 40px;margin:6px 0}
+  .steps li::before{
+    counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700
+  }
+
+  .topbar{display:none}
+  #themeBtn{position:fixed;top:14px;right:16px;z-index:20;border:1px solid var(--border);background:var(--card);color:var(--fg);
+    width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:16px}
+  footer{border-top:1px solid var(--border);margin-top:60px;padding:24px 0;color:var(--muted);font-size:14px}
+
+  @media(max-width:880px){
+    .wrap{grid-template-columns:1fr}
+    aside{position:fixed;inset:0 auto 0 0;width:270px;transform:translateX(-100%);transition:transform .2s;z-index:30}
+    aside.open{transform:none}
+    .topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:15;background:var(--bg);
+      border-bottom:1px solid var(--border);padding:10px 16px}
+    .topbar button{border:1px solid var(--border);background:var(--card);color:var(--fg);border-radius:9px;padding:7px 11px;cursor:pointer}
+    main{padding:0 18px 80px}
+    header.hero{padding:30px 0 24px}
+  }
+</style>
+</head>
+<body>
+<button id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+
+<div class="topbar">
+  <button id="menuBtn" aria-label="Menu">☰ Menu</button>
+  <strong>ADT·BLE</strong>
+</div>
+
+<div class="wrap">
+  <aside id="sidebar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 96 96" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#6366f1"/>
+        </linearGradient></defs>
+        <rect x="6" y="6" width="84" height="84" rx="22" fill="url(#g)"/>
+        <g transform="translate(30,28) scale(1.75)" fill="#fff" fill-rule="evenodd">
+          <path d="M17.71,7.71L12,2h-1v7.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L11,14.41V22h1l5.71-5.71l-4.3-4.29L17.71,7.71z M13,5.83l1.88,1.88L13,9.59V5.83z M13,18.17v-3.76l1.88,1.88L13,18.17z"/>
+        </g>
+      </svg>
+      <strong style="font-size:18px;letter-spacing:-.01em">ADT·BLE</strong>
+    </div>
+    <nav id="nav">
+      <div class="grp">Guide</div>
+      <a href="#overview">Overview</a>
+      <a href="#install">Installation</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#how">How it works</a>
+      <div class="grp">Reference</div>
+      <a href="#api-client">AdditelBLE</a>
+      <a href="#api-sync">AdditelBLESync</a>
+      <a href="#api-funcs">Functions &amp; types</a>
+      <a href="#api-exc">Exceptions</a>
+      <a href="#cli">CLI</a>
+      <div class="grp">Devices</div>
+      <a href="#commands">Commands &amp; errors</a>
+      <a href="#platforms">Platform notes</a>
+      <a href="#trouble">Troubleshooting</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero" id="overview">
+      <div class="tile">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" fill-rule="evenodd" aria-hidden="true">
+          <path d="M17.71,7.71L12,2h-1v7.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L11,14.41V22h1l5.71-5.71l-4.3-4.29L17.71,7.71z M13,5.83l1.88,1.88L13,9.59V5.83z M13,18.17v-3.76l1.88,1.88L13,18.17z"/>
+        </svg>
+      </div>
+      <h1>ADT-BLE</h1>
+      <p class="lede">An integrable Python library — async&nbsp;+&nbsp;sync — and a small CLI for talking to
+        <strong>Additel calibrators</strong> over Bluetooth Low Energy. Primary target: the ADT226 (works with the ADT227 and <code>…Ex</code> variants).</p>
+      <div class="badges">
+        <span class="badge">Python 3.8+</span>
+        <span class="badge">macOS · Windows · Linux</span>
+        <span class="badge">Bleak</span>
+        <span class="badge">Typer CLI</span>
+        <span class="badge">MIT</span>
+      </div>
+      <div class="cta">
+        <a class="btn" href="#quickstart">Get started →</a>
+        <a class="btn ghost" href="https://github.com/riccardo-nigrelli/ADT-BLE">GitHub ↗</a>
+      </div>
+    </header>
+
+    <section>
+      <p>The library handles the fiddly parts of the Additel BLE protocol for you — connection, GATT
+      characteristic resolution, the <code>CODE?</code>&nbsp;→&nbsp;<code>@</code> handshake,
+      fragmented-notification reassembly and automatic error-queue checking — behind a plain
+      <code>query()</code> / <code>write()</code> API with typed exceptions.</p>
+
+      <div class="feat">
+        <div class="card"><b>Async &amp; sync</b><span class="sub">Use <code>async/await</code> or a plain blocking API.</span></div>
+        <div class="card"><b>Automatic handshake</b><span class="sub">Answers the device's <code>CODE?</code> so commands work.</span></div>
+        <div class="card"><b>UUID auto-discovery</b><span class="sub">Finds the right characteristic per model.</span></div>
+        <div class="card"><b>Error checking</b><span class="sub">Reads <code>SYSTem:ERRor?</code> and raises typed errors.</span></div>
+        <div class="card"><b>Robust framing</b><span class="sub">Reassembles fragmented notifications.</span></div>
+        <div class="card"><b>One dependency</b><span class="sub">Just <code>bleak</code>; fully typed.</span></div>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2>Installation</h2>
+      <p><strong>Requirements:</strong> Python 3.8+, Bluetooth enabled, and the calibrator powered on and in range.</p>
+      <p>As a library, to integrate into another program:</p>
+<pre><code><span class="tok-c"># from a local clone</span>
+pip install .
+<span class="tok-c"># or straight from GitHub</span>
+pip install <span class="tok-s">"git+https://github.com/riccardo-nigrelli/ADT-BLE.git"</span></code></pre>
+      <p>With the test CLI (the <code>cli</code> extra):</p>
+<pre><code>pip install <span class="tok-s">".[cli]"</span></code></pre>
+      <p>Development environment (editable + CLI + tests):</p>
+<pre><code>python -m venv .venv
+<span class="tok-c"># macOS/Linux:</span> source .venv/bin/activate
+<span class="tok-c"># Windows:  </span> .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt</code></pre>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quickstart</h2>
+
+      <h3>Async — recommended</h3>
+<pre><code><span class="tok-k">import</span> asyncio
+<span class="tok-k">from</span> additel_ble <span class="tok-k">import</span> AdditelBLE
+
+<span class="tok-k">async def</span> <span class="tok-f">main</span>():
+    <span class="tok-k">async with</span> AdditelBLE(name=<span class="tok-s">"ADT226"</span>) <span class="tok-k">as</span> dev:   <span class="tok-c"># connect + handshake</span>
+        <span class="tok-f">print</span>(<span class="tok-k">await</span> dev.identify())          <span class="tok-c"># *IDN?</span>
+        <span class="tok-f">print</span>(<span class="tok-k">await</span> dev.measure())           <span class="tok-c"># MEASure:CH? PV</span>
+        <span class="tok-f">print</span>(<span class="tok-k">await</span> dev.query(<span class="tok-s">"CALibrator:MEASure:PRESsure:UNIT?"</span>))
+
+asyncio.run(main())</code></pre>
+
+      <h3>Synchronous — for non-async programs</h3>
+<pre><code><span class="tok-k">from</span> additel_ble <span class="tok-k">import</span> AdditelBLESync
+
+<span class="tok-k">with</span> AdditelBLESync(name=<span class="tok-s">"ADT226"</span>) <span class="tok-k">as</span> dev:
+    <span class="tok-f">print</span>(dev.identify())
+    <span class="tok-f">print</span>(dev.measure())</code></pre>
+
+      <h3>CLI</h3>
+<pre><code>adt-ble scan                          <span class="tok-c"># list nearby BLE devices</span>
+adt-ble send --name ADT226 <span class="tok-s">"*IDN?"</span>     <span class="tok-c"># connect, send, disconnect</span></code></pre>
+
+      <div class="note">Connect by <code>name</code> (scanned for) <b>or</b> <code>address</code> (direct). One of them is required — there is no default device name.</div>
+    </section>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><b>Transport — UART over GATT.</b> Commands are written to a <em>write</em> characteristic; replies arrive as <em>notifications</em>.</li>
+        <li><b>Handshake.</b> After subscribing, the device sends <code>CODE?</code>. The client must answer <code>@\r\n</code> <b>within ~5&nbsp;s</b>, or the device disconnects and ignores every command. The library does this automatically (<code>handshake="@"</code>).</li>
+        <li><b>Characteristic resolution.</b> Explicit overrides → Additel's documented UUIDs → auto-discovery of a single characteristic that supports both <em>notify</em> and <em>write</em>.</li>
+        <li><b>SCPI commands</b> terminated with <code>\r\n</code>; replies (which may be fragmented) are buffered until the terminator.</li>
+        <li><b>Error checking.</b> With <code>check_errors=True</code> (default), the library reads <code>SYSTem:ERRor?</code> after each command and raises <code>DeviceCommandError</code> on a non-zero code. The queue is cleared on connect and popped on each read.</li>
+      </ol>
+      <div class="warn">The generic 226 guide says you can send commands right after <code>CODE?</code> <b>without replying</b> — that is incomplete. Without the <code>@</code> handshake the device stays silent and disconnects after ~5&nbsp;s.</div>
+    </section>
+
+    <section id="api-client">
+      <h2>API reference</h2>
+      <h3><code>AdditelBLE(...)</code></h3>
+      <p class="sub">Asynchronous client. Provide <code>name</code> or <code>address</code>.</p>
+      <table>
+        <thead><tr><th>Argument</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>name</code></td><td><code>None</code></td><td>Advertised name to scan for (substring, case-insensitive).</td></tr>
+          <tr><td><code>address</code></td><td><code>None</code></td><td>BLE address/UUID to connect to directly (skips scanning).</td></tr>
+          <tr><td><code>notify_uuid</code> / <code>write_uuid</code></td><td><code>None</code></td><td>Force a specific characteristic UUID.</td></tr>
+          <tr><td><code>handshake</code></td><td><code>"@"</code></td><td>Reply sent after <code>CODE?</code>. <code>None</code> disables it.</td></tr>
+          <tr><td><code>terminator</code></td><td><code>"\r\n"</code></td><td>Command terminator.</td></tr>
+          <tr><td><code>scan_timeout</code></td><td><code>10.0</code></td><td>Scan duration when connecting by name (s).</td></tr>
+          <tr><td><code>command_timeout</code></td><td><code>3.0</code></td><td>Per-command reply timeout (s).</td></tr>
+          <tr><td><code>ready_timeout</code></td><td><code>5.0</code></td><td>How long to wait for <code>CODE?</code> (s).</td></tr>
+          <tr><td><code>check_errors</code></td><td><code>True</code></td><td>Read <code>SYSTem:ERRor?</code> after each command and raise on errors.</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>Method / property</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>await connect()</code></td><td>Scan (if needed), connect, resolve characteristics, handshake. Returns <code>self</code>.</td></tr>
+          <tr><td><code>await disconnect()</code></td><td>Close the connection (idempotent).</td></tr>
+          <tr><td><code>async with …</code></td><td>Connect/disconnect automatically.</td></tr>
+          <tr><td><code>await query(cmd, *, timeout=None, check_error=None)</code></td><td>Send a command, return the reply line.</td></tr>
+          <tr><td><code>await write(cmd, *, check_error=None)</code></td><td>Send a command without waiting for a reply.</td></tr>
+          <tr><td><code>await identify()</code></td><td>Shortcut for <code>*IDN?</code>.</td></tr>
+          <tr><td><code>await measure()</code></td><td>Shortcut for <code>MEASure:CH? PV</code> (present value).</td></tr>
+          <tr><td><code>await error()</code></td><td>Read the error queue (<code>SYSTem:ERRor?</code>).</td></tr>
+          <tr><td><code>gatt_table()</code></td><td>Device GATT table as a list of <code>GattEntry</code>.</td></tr>
+          <tr><td><code>is_connected</code>, <code>ready</code>, <code>address</code>, <code>notify_uuid</code>, <code>write_uuid</code></td><td>State properties.</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><code>query()</code> raises <code>CommandTimeoutError</code> on no reply, or <code>DeviceCommandError</code> when the device flags an error for the command.</div>
+    </section>
+
+    <section id="api-sync">
+      <h3><code>AdditelBLESync(...)</code></h3>
+      <p>Same constructor and methods as <code>AdditelBLE</code>, but <strong>blocking</strong>: it runs an asyncio loop on a background thread and marshals each call onto it, keeping a single stateful connection open. Supports <code>with</code>.</p>
+<pre><code><span class="tok-k">from</span> additel_ble <span class="tok-k">import</span> AdditelBLESync
+<span class="tok-k">with</span> AdditelBLESync(address=<span class="tok-s">"AA:BB:CC:DD:EE:FF"</span>) <span class="tok-k">as</span> dev:
+    <span class="tok-f">print</span>(dev.query(<span class="tok-s">"SYSTem:VERSion?"</span>))</code></pre>
+    </section>
+
+    <section id="api-funcs">
+      <h3>Functions &amp; types</h3>
+      <table>
+        <tbody>
+          <tr><td><code>await scan(timeout=10.0)</code> · <code>scan_sync(timeout=10.0)</code></td><td>List nearby BLE devices.</td></tr>
+          <tr><td><code>await find_device(name, *, timeout=10.0)</code></td><td>First device matching <code>name</code> (raises <code>DeviceNotFoundError</code>).</td></tr>
+          <tr><td><code>GattEntry(service, characteristic, properties)</code></td><td>Named tuple returned by <code>gatt_table()</code>.</td></tr>
+          <tr><td><code>ResponseBuffer</code>, <code>build_command()</code>, <code>parse_error()</code></td><td>Reusable protocol primitives.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="api-exc">
+      <h3>Exceptions</h3>
+      <p>All inherit from <code>AdditelError</code>.</p>
+      <table>
+        <thead><tr><th>Exception</th><th>Raised when</th></tr></thead>
+        <tbody>
+          <tr><td><code>DeviceNotFoundError</code></td><td>No BLE device matched the name during a scan.</td></tr>
+          <tr><td><code>ConnectionFailedError</code></td><td>The BLE connection could not be established.</td></tr>
+          <tr><td><code>CharacteristicNotFoundError</code></td><td>No usable notify/write characteristic was found.</td></tr>
+          <tr><td><code>CommandTimeoutError</code></td><td>No reply arrived within the timeout.</td></tr>
+          <tr><td><code>DeviceCommandError</code></td><td>The device queued an error — exposes <code>.code</code> and <code>.message</code>.</td></tr>
+        </tbody>
+      </table>
+<pre><code><span class="tok-k">from</span> additel_ble <span class="tok-k">import</span> AdditelBLE, DeviceCommandError, CommandTimeoutError
+
+<span class="tok-k">async with</span> AdditelBLE(name=<span class="tok-s">"ADT226"</span>) <span class="tok-k">as</span> dev:
+    <span class="tok-k">try</span>:
+        value = <span class="tok-k">await</span> dev.query(<span class="tok-s">"MEASure:CH? PV"</span>)
+    <span class="tok-k">except</span> DeviceCommandError <span class="tok-k">as</span> e:
+        <span class="tok-f">print</span>(<span class="tok-s">"device rejected it:"</span>, e.code, e.message)
+    <span class="tok-k">except</span> CommandTimeoutError:
+        <span class="tok-f">print</span>(<span class="tok-s">"no reply"</span>)</code></pre>
+    </section>
+
+    <section id="cli">
+      <h2>CLI</h2>
+      <p>Installed with the <code>cli</code> extra as <code>adt-ble</code> (also runnable as <code>python -m additel_ble.cli</code>).</p>
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>adt-ble scan [--name T] [--timeout N]</code></td><td>List nearby BLE devices.</td></tr>
+          <tr><td><code>adt-ble uuid &lt;NAME&gt; [--all]</code></td><td>Print the address/UUID for a device name.</td></tr>
+          <tr><td><code>adt-ble send [CMDS…] (--name T | --uuid ADDR)</code></td><td>Connect, send command(s), print replies, disconnect.</td></tr>
+        </tbody>
+      </table>
+<pre><code>adt-ble send --name ADT226 <span class="tok-s">"*IDN?"</span>
+adt-ble send --uuid AA:BB:CC:DD:EE:FF <span class="tok-s">"*IDN?"</span> <span class="tok-s">"MEASure:CH? PV"</span>   <span class="tok-c"># several commands, one connection</span>
+adt-ble send -n ADT226 -v <span class="tok-s">"*IDN?"</span>                    <span class="tok-c"># -v: GATT table + debug logs</span>
+adt-ble send -n ADT226 --no-error-check <span class="tok-s">"…"</span>          <span class="tok-c"># skip the SYSTem:ERRor? check</span></code></pre>
+      <div class="note">All commands passed to a single <code>send</code> share <b>one</b> connection and <b>one</b> handshake, so it is faster than running <code>send</code> repeatedly.</div>
+    </section>
+
+    <section id="commands">
+      <h2>Commands &amp; errors</h2>
+      <p><code>*IDN?</code> is an IEEE&nbsp;488.2 common command: no parameter, no mode — it always answers. Most other commands do not answer unless used correctly:</p>
+      <ul>
+        <li><b>Missing parameter.</b> Read the value with <code>MEASure:CH? PV</code> (the <code>PV</code> parameter is required). <code>MEASure:CH?</code> alone returns nothing.</li>
+        <li><b>Wrong mode.</b> <code>CALibrator:…</code> commands only reply in Calibrator mode.</li>
+        <li><b>Set commands</b> (e.g. <code>…:UNIT &lt;id&gt;</code>) legitimately return nothing.</li>
+      </ul>
+      <p>When a command is invalid the device stays silent and queues an error. The library reads it and raises <code>DeviceCommandError</code>; you can also read it manually with <code>await dev.error()</code>. Mode-independent commands that always reply (handy for a smoke test): <code>SYSTem:VERSion?</code>, <code>SYSTem:DATE?</code>, <code>SYSTem:BLUEtooth:NAMe</code>, <code>SYSTem:BATTery:CAPacity?</code>.</p>
+      <div class="grid2">
+        <div class="card"><b>Handshake &amp; UUIDs</b><span class="sub">Documented in Additel's <em>Bluetooth Protocol for the ADT685</em> (same UUIDs as the 226/227) — see <a href="additel_bluetooth_protocol_685.pdf">the PDF</a> and <a href="additel_ble_notes.md">the notes</a>.</span></div>
+        <div class="card"><b>Full command set</b><span class="sub">The complete SCPI reference is in <a href="scpi_commands.md">scpi_commands.md</a> and <a href="226_227_commands.txt">226_227_commands.txt</a>.</span></div>
+      </div>
+    </section>
+
+    <section id="platforms">
+      <h2>Platform notes</h2>
+      <table>
+        <thead><tr><th>OS</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><b>macOS</b></td><td>Grant the terminal/IDE the <b>Bluetooth</b> permission on first run (System Settings → Privacy &amp; Security → Bluetooth). Addresses are system-assigned <b>UUIDs</b>.</td></tr>
+          <tr><td><b>Windows</b></td><td>Requires Windows 10 (build 16299+) / 11, Bluetooth on. Addresses are <b>MAC</b>.</td></tr>
+          <tr><td><b>Linux</b></td><td>Requires BlueZ ≥ 5.43 and the <code>bluetooth</code> service running. Addresses are <b>MAC</b>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="trouble">
+      <h2>Troubleshooting</h2>
+      <table>
+        <thead><tr><th>Symptom</th><th>Cause / fix</th></tr></thead>
+        <tbody>
+          <tr><td>No device found</td><td>Device off/out of range, Bluetooth off, or (macOS) permission not granted. Try <code>adt-ble scan</code>.</td></tr>
+          <tr><td>Connects, but every command times out</td><td>Keep the handshake on (<code>handshake="@"</code>). Check the <code>ready</code> state with <code>-v</code>.</td></tr>
+          <tr><td>One command returns no reply</td><td>Missing parameter or wrong mode — read <code>dev.error()</code>.</td></tr>
+          <tr><td><code>DeviceCommandError … -109</code></td><td>The device reported a command error (here: missing parameter).</td></tr>
+          <tr><td>Wrong characteristic chosen</td><td>Pass <code>notify_uuid=</code>/<code>write_uuid=</code> from the <code>-v</code> GATT table.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      <p><strong>ADT-BLE</strong> · MIT License ·
+        <a href="https://github.com/riccardo-nigrelli/ADT-BLE">GitHub</a> ·
+        <a href="https://bleak.readthedocs.io">Bleak</a> ·
+        <a href="https://typer.tiangolo.com">Typer</a></p>
+      <p class="sub">Not affiliated with Additel. Based on Additel's official communication documentation.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+  // theme toggle
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  function apply(t){ if(t){root.setAttribute('data-theme',t);} }
+  try{apply(localStorage.getItem('adtble-theme'));}catch(e){}
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    var next = cur==='dark' ? 'light' : cur==='light' ? 'dark'
+      : (matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark');
+    apply(next); try{localStorage.setItem('adtble-theme',next);}catch(e){}
+  });
+  // mobile menu
+  var sb=document.getElementById('sidebar'), mb=document.getElementById('menuBtn');
+  if(mb){mb.addEventListener('click',function(){sb.classList.toggle('open');});}
+  document.getElementById('nav').addEventListener('click',function(e){
+    if(e.target.tagName==='A') sb.classList.remove('open');
+  });
+  // scrollspy
+  var links=[].slice.call(document.querySelectorAll('#nav a'));
+  var map={}; links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var obs=new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if(en.isIntersecting){
+        links.forEach(function(a){a.classList.remove('active');});
+        var a=map[en.target.id]; if(a)a.classList.add('active');
+      }
+    });
+  },{rootMargin:'-20% 0px -70% 0px'});
+  document.querySelectorAll('section[id],header[id]').forEach(function(s){obs.observe(s);});
+</script>
+</body>
+</html>

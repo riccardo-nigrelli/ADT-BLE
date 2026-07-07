@@ -1,88 +1,97 @@
-# Note tecniche — comunicazione BLE con dispositivi Additel
+# Technical notes — Additel BLE communication
 
-Sintesi di come funziona la comunicazione Bluetooth Low Energy con i
-calibratori Additel (serie 226/227 e affini), ricavata dal materiale
-ufficiale Additel. Vedi i file allegati in questa cartella e i link nel
-[`../README.md`](../README.md).
+How Bluetooth Low Energy communication with Additel calibrators (the 226/227
+family and relatives) works, distilled from Additel's official material. See the
+attached files in this folder and the links in the [README](../README.md).
 
-## Modello di comunicazione
+## Communication model
 
-I dispositivi Additel recenti espongono una **UART-over-GATT**: si scrive un
-comando testuale su una characteristic e si ricevono le risposte via
-**notifiche** su un'altra characteristic (spesso la *stessa*).
+Recent Additel devices expose a **UART-over-GATT** interface: you write a text
+command to one characteristic and receive replies as **notifications** on
+another (often the *same* one).
 
-Passi (dall'esempio ufficiale in Python + [Bleak](https://bleak.readthedocs.io),
-libreria **cross-platform**: macOS / Windows / Linux):
+Steps, based on Additel's official example (Python + [Bleak](https://bleak.readthedocs.io),
+a **cross-platform** library: macOS / Windows / Linux):
 
-1. **Scan** dei dispositivi BLE vicini.
-2. **Filtro per nome** advertised (es. `ADT685`; per il nostro modello `ADT226`).
-3. **Connessione** con `BleakClient`.
-4. **Subscribe** alla *notification characteristic* per ricevere le risposte
-   (arrivano come `bytearray`).
-5. **Handshake**: il dispositivo invia spontaneamente **`CODE?`**; il client
-   **deve rispondere `@\r\n` entro ~5 secondi**, altrimenti il device chiude la
-   connessione e **ignora tutti i comandi**. Solo dopo l'handshake risponde.
-   (Documentato nel *Bluetooth Protocol for the ADT685*, che usa gli stessi
-   UUID del 226/227.)
-6. **Scrittura** del comando sulla *write characteristic*, come `bytes` UTF-8.
-7. Le risposte arrivano nella callback delle notifiche.
+1. **Scan** for nearby BLE devices.
+2. **Match by advertised name** (e.g. `ADT685`; for our model, `ADT226`).
+3. **Connect** with `BleakClient`.
+4. **Subscribe** to the *notification characteristic* to receive replies
+   (delivered as `bytearray`).
+5. **Handshake**: the device spontaneously sends **`CODE?`**; the client **must
+   reply `@\r\n` within ~5 seconds**, otherwise the device closes the connection
+   and **ignores every command**. Only after the handshake does it answer.
+   (Documented in *Bluetooth Protocol for the ADT685*, which uses the same UUIDs
+   as the 226/227.)
+6. **Write** the command to the *write characteristic* as UTF-8 `bytes`.
+7. Replies arrive in the notification callback.
 
-> ⚠️ La guida BLE generica del 226 diceva che dopo `CODE?` "si può iniziare a
-> inviare comandi" **senza rispondere** — è **errato/incompleto**: senza
-> l'handshake `@` il device 226 non risponde e si disconnette dopo ~5s.
+> ⚠️ The generic 226 BLE guide claims you can "start sending commands" after
+> `CODE?` **without replying** — that is **wrong/incomplete**: without the `@`
+> handshake the 226 does not answer and disconnects after ~5s.
 
-## UUID
+## UUIDs
 
-> ⚠️ Additel dichiara che questi UUID sono per l'**ADT685** e **possono
-> differire** su altri modelli. Per questo lo script prova prima questi e,
-> se non presenti, fa **auto-discovery** dalle proprietà delle characteristic
-> (`notify`/`indicate` per leggere, `write`/`write-without-response` per scrivere).
+> ⚠️ Additel states these UUIDs are for the **ADT685** and **may differ** on
+> other models. The library therefore tries them first and, if absent, falls
+> back to **auto-discovery** based on characteristic properties (`notify`/
+> `indicate` to read, `write`/`write-without-response` to send).
 
-| Ruolo | UUID (ADT685, valore di partenza) |
-|-------|-----------------------------------|
+| Role | UUID (ADT685 — starting point) |
+|------|--------------------------------|
 | Communication service | `AF661820-D14A-4B21-90F8-54D58F8614F0` |
 | Notification characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 | Write characteristic | `1B6B9415-FF0D-47C2-9444-A5032F727B2D` |
 
-**Per scoprire gli UUID reali del tuo dispositivo** usa `adt-ble send -v` (CLI)
-oppure `AdditelBLE.gatt_table()` dalla libreria: ottieni l'intera tabella GATT
-(service + characteristic con le proprietà) e le characteristic scelte per
-notify/write. Vedi
-la sezione *"Come ottenere/recuperare gli UUID"* del README per la procedura
-completa e le alternative (nRF Connect, `bluetoothctl`, ecc.).
+To discover the real UUIDs of your device, run `adt-ble send -n ADT226 -v` (CLI)
+or call `AdditelBLE.gatt_table()`: you get the full GATT table (services +
+characteristics with their properties) and the characteristics chosen for
+notify/write.
 
-## Formato dei comandi (SCPI)
+## Command format (SCPI)
 
-- I comandi sono stringhe SCPI (vedi [`scpi_commands.md`](scpi_commands.md) e
+- Commands are SCPI strings (see [`scpi_commands.md`](scpi_commands.md) and
   [`226_227_commands.txt`](226_227_commands.txt)).
-- **Terminatore**: uno tra `\r\n`, `\r`, `\n`, `\0`. Lo script usa `\r\n`.
-- Struttura: *mnemonico* + spazio + *parametro* (es. `MEASure:CH? PV`).
-- Le parti in `[]` del mnemonico sono opzionali.
-- Il `@` **non** è un prefisso da anteporre a ogni comando: è il **token di
-  handshake** una tantum in risposta a `CODE?` (vedi punto 5). La libreria lo
-  invia in automatico (`AdditelBLE(handshake="@")`, default).
-- Le risposte BLE possono arrivare **frammentate** su più notifiche: vanno
-  bufferizzate fino al terminatore (lo script lo fa).
+- **Terminator**: one of `\r\n`, `\r`, `\n`, `\0`. The library uses `\r\n`.
+- **Structure**: *mnemonic* + space + *parameter* (e.g. `MEASure:CH? PV`).
+- Parts in `[]` in the mnemonic are optional.
+- **Write mode**: the characteristic is written with *write-without-response*
+  when it supports it (matching Bleak's default and Additel's example); using
+  write-with-response makes the device reject the write with ATT error `0x0D`.
+- The `@` is **not** a per-command prefix — it is the **one-time handshake**
+  token in reply to `CODE?` (see step 5). The library sends it automatically.
+- BLE replies may arrive **fragmented** across notifications; they are buffered
+  until the terminator.
 
-## Comandi utili per una demo
+## Error queue
 
-| Comando | Descrizione |
+When a command is invalid in the current context, the device usually stays
+silent and pushes an error onto its queue instead. Read (and pop) it with
+**`SYSTem:ERRor?`** — it returns `<code>,"<message>"`, where code `0` means
+"No error". `*CLS` clears the whole queue. The library reads the queue after
+each command (`check_errors=True`) and raises `DeviceCommandError` on a non-zero
+code. Common codes: `-109` missing parameter, `-108` parameter not allowed,
+`-110` command header error, `222` failed to read measure value.
+
+## Useful commands
+
+| Command | Description |
 |---------|-------------|
-| `*IDN?` | Identificazione: seriale, versione firmware, modello. Funziona sempre. |
-| `*CLS` / `*RST` | Clear registri / reset. |
-| `CALibrator:MEASure:VALUE?` | Legge il valore misurato del canale (richiede modalità Calibrator). |
-| `CALibrator:MEASure:FUNCtion?` | Legge la voce di misura corrente. |
-| `CALibrator:MEASure:PRESsure:UNIT?` | Legge l'unità del modulo di pressione esterno. |
-| `CALibrator:MEASure:PRESsure:ZERO` | Azzeramento del modulo di pressione. |
-| `CALibrator:MEASure:PRESsure:STABle?` | Stato di stabilità del modulo di pressione. |
-| `MEASure:CH? PV` | Acquisisce il valore misurato corrente. |
+| `*IDN?` | Identity: serial, firmware, model. Always replies. |
+| `*CLS` / `*RST` | Clear registers / reset. |
+| `MEASure:CH? PV` | Read the present value of the active measure channel. |
+| `CALibrator:MEASure:VALUE?` | Read the measured value (Calibrator mode only). |
+| `CALibrator:MEASure:PRESsure:UNIT?` | Read the external pressure-module unit. |
+| `SYSTem:ERRor?` | Read the next error from the queue. |
+| `SYSTem:VERSion?` | Firmware/hardware versions. |
 
-L'elenco completo (misura, output, HART, calcolo termico, ecc.) è in
+The complete list (measurement, output, HART, thermal calculation, etc.) is in
 [`226_227_commands.txt`](226_227_commands.txt).
 
-## File di riferimento in questa cartella
+## Reference files in this folder
 
-- [`scpi_commands.md`](scpi_commands.md) — reference SCPI curata.
-- [`226_227_commands.txt`](226_227_commands.txt) — command set SCPI 226/227 completo (estratto dal PDF ufficiale).
-- [`additel_official_bluetooth_guide.md`](additel_official_bluetooth_guide.md) — guida BLE ufficiale Additel (copia).
-- [`additel_official_bluetooth_example.py`](additel_official_bluetooth_example.py) — esempio Python ufficiale (copia).
+- [`scpi_commands.md`](scpi_commands.md) — curated SCPI reference.
+- [`226_227_commands.txt`](226_227_commands.txt) — full 226/227 command set (from the official PDF).
+- [`additel_bluetooth_protocol_685.pdf`](additel_bluetooth_protocol_685.pdf) — official BLE protocol (handshake + UUIDs).
+- [`additel_official_bluetooth_guide.md`](additel_official_bluetooth_guide.md) — Additel's official BLE guide (copy).
+- [`additel_official_bluetooth_example.py`](additel_official_bluetooth_example.py) — Additel's official Python example (copy).
