@@ -156,6 +156,11 @@ Client BLE asincrono.
 | `gatt_table()` → `list[(service, char, props)]` | Tabella GATT (per scoprire gli UUID). |
 | `is_connected`, `ready`, `address`, `notify_uuid`, `write_uuid` | Proprietà di stato. |
 
+> **Comandi con/senza risposta:** usa **`query()`** per i comandi che rispondono —
+> tutti quelli con `?` e i "set" che ritornano `0|1` — attende e ritorna la risposta.
+> Usa **`write()`** per i "set" che non rispondono (invio senza attesa). La scrittura
+> usa automaticamente *write-without-response* quando la characteristic la supporta.
+
 ### `AdditelBLESync(...)`
 Stessa firma e stessi metodi, ma **bloccanti** (usa un event loop in un thread dedicato). Supporta `with`.
 

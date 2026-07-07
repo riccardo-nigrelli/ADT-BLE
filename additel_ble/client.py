@@ -209,8 +209,13 @@ class AdditelBLE:
             )
         self._notify_char = notify
         self._write_char = write
-        self._write_response = "write" in write.properties
-        log.info("notify=%s  write=%s (%s)", notify.uuid, write.uuid,
+        # Prefer write-without-response whenever the characteristic supports it.
+        # This matches Bleak's own default and Additel's official example; using
+        # write-with-response on these characteristics makes the device reject the
+        # write with ATT error 0x0D ("Invalid Attribute Value Length").
+        self._write_response = "write-without-response" not in write.properties
+        log.info("notify=%s  write=%s  props=[%s] -> %s", notify.uuid, write.uuid,
+                 ", ".join(write.properties),
                  "with-response" if self._write_response else "without-response")
 
     # -- notifications ----------------------------------------------------- #

@@ -30,6 +30,8 @@ except ImportError as exc:  # pragma: no cover - dependency hint
         '    pip install "additel-ble[cli]"'
     ) from exc
 
+from bleak.exc import BleakError
+
 from . import __version__
 from .client import AdditelBLE
 from .exceptions import AdditelError, CommandTimeoutError
@@ -64,6 +66,10 @@ def _run(coro):
         return asyncio.run(coro)
     except AdditelError as exc:
         console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1)
+    except BleakError as exc:
+        console.print(f"[red]Bluetooth error:[/red] {exc}")
+        console.print("[yellow]Tip:[/yellow] run with [b]-v[/b] to see the GATT table.")
         raise typer.Exit(code=1)
     except KeyboardInterrupt:  # pragma: no cover
         raise typer.Exit(code=130)
@@ -163,7 +169,9 @@ def send(
                     reply = await dev.query(cmd)
                     console.print(f"  [cyan]{cmd}[/cyan] → [green]{reply}[/green]")
                 except CommandTimeoutError:
-                    console.print(f"  [cyan]{cmd}[/cyan] → [red](no reply)[/red]")
+                    console.print(f"  [cyan]{cmd}[/cyan] → [yellow](sent, no reply)[/yellow]")
+                except BleakError as exc:
+                    console.print(f"  [cyan]{cmd}[/cyan] → [red]GATT error: {exc}[/red]")
         console.print("\n[dim]Disconnected.[/dim]")
 
     _run(_impl())
